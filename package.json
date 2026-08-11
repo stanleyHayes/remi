@@ -1,0 +1,10 @@
+{
+  "name": "remi-platform",
+  "private": true,
+  "scripts": {
+    "dev:web": "pnpm --filter web dev",
+    "dev:admin": "pnpm --filter admin dev",
+    "dev:api": "pnpm --filter api dev",
+    "build": "pnpm -r build"
+  }
+}

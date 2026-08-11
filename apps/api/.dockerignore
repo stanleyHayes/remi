@@ -1,0 +1,4 @@
+# Never bake local state or secrets into the image.
+.env
+bin
+*.test

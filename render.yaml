@@ -1,0 +1,55 @@
+# Render blueprint for the REMI platform.
+#
+# Only the API is deployed here. The two Next.js frontends (apps/web on :3010,
+# apps/admin on :3011) are deployed separately (e.g. Vercel) — Render's Node
+# runtime has no pnpm-monorepo story worth encoding here. Their
+# NEXT_PUBLIC_API_URL must point at this service's public URL, and
+# CORS_ORIGINS below must list theirs.
+#
+# MongoDB is external (Atlas or similar): paste its connection string into the
+# MONGODB_URI secret in the Render dashboard after the first sync.
+services:
+  - type: web
+    name: remi-api
+    runtime: docker
+    plan: free
+    region: frankfurt
+    dockerfilePath: ./apps/api/Dockerfile
+    dockerContext: ./apps/api
+    healthCheckPath: /health
+    autoDeployTrigger: checksPass
+    buildFilter:
+      paths:
+        - apps/api/**
+        - render.yaml
+    envVars:
+      # Render injects PORT; the server already honours it.
+      - key: APP_ENV
+        value: production
+      - key: MONGODB_URI # external MongoDB connection string, incl. db name
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: CORS_ORIGINS # comma-separated web/admin origins
+        value: https://remi.vercel.app,https://remi-admin.vercel.app
+      - key: ADMIN_APP_URL # invitation links
+        value: https://remi-admin.vercel.app
+      - key: SEED_ADMIN_EMAIL
+        sync: false
+      - key: SEED_ADMIN_PASSWORD
+        sync: false
+      # Optional integrations — the API runs in demo mode without them.
+      - key: CLOUDINARY_CLOUD_NAME
+        sync: false
+      - key: CLOUDINARY_API_KEY
+        sync: false
+      - key: CLOUDINARY_API_SECRET
+        sync: false
+      - key: RESEND_API_KEY
+        sync: false
+      - key: EMAIL_FROM
+        value: REMI Church <noreply@remi.church>
+      - key: NOTIFY_EMAIL
+        sync: false
+      - key: PAYSTACK_SECRET_KEY
+        sync: false

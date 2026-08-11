@@ -1,0 +1,16 @@
+services:
+  mongo:
+    image: mongo:7
+    container_name: remi-mongo
+    ports:
+      - "27019:27017"
+    volumes:
+      - remi-mongo-data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 20s
+      retries: 12
+      start_period: 40s
+volumes:
+  remi-mongo-data:
