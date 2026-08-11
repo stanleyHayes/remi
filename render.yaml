@@ -35,9 +35,9 @@ services:
       - key: ADMIN_APP_URL # invitation links
         value: https://remi-admin.vercel.app
       - key: SEED_ADMIN_EMAIL
-        sync: false
+        value: admin@remi.church
       - key: SEED_ADMIN_PASSWORD
-        sync: false
+        value: remi-admin-2026
       # Optional integrations — the API runs in demo mode without them.
       - key: CLOUDINARY_CLOUD_NAME
         sync: false

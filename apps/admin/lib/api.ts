@@ -77,14 +77,6 @@ export async function api<T = unknown>(path: string, options: ApiOptions = {}): 
     body: options.body !== undefined ? JSON.stringify(options.body) : undefined,
   });
 
-  if (res.status === 401) {
-    clearSession();
-    if (typeof window !== "undefined" && !window.location.pathname.startsWith("/login")) {
-      window.location.href = "/login";
-    }
-    throw new ApiError(401, "Session expired. Please sign in again.");
-  }
-
   if (res.status === 204) return null as T;
 
   let data: unknown = null;
@@ -102,6 +94,14 @@ export async function api<T = unknown>(path: string, options: ApiOptions = {}): 
       data && typeof data === "object" && "error" in data && typeof (data as { error: unknown }).error === "string"
         ? (data as { error: string }).error
         : `Request failed (${res.status})`;
+    if (res.status === 401) {
+      clearSession();
+      const isSignInRequest = path === "/api/auth/login" || path === "/api/auth/mfa/verify";
+      if (!isSignInRequest && typeof window !== "undefined" && !window.location.pathname.startsWith("/login")) {
+        window.location.href = "/login";
+      }
+      throw new ApiError(401, isSignInRequest ? message : "Session expired. Please sign in again.");
+    }
     throw new ApiError(res.status, message);
   }
 

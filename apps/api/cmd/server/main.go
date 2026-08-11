@@ -25,6 +25,15 @@ func main() {
 		log.Fatalf("mongo: %v", err)
 	}
 	defer client.Disconnect(context.Background())
+	if cfg.SeedAdminConfigured {
+		created, err := db.EnsureInitialAdmin(ctx, database, cfg.SeedAdminEmail, cfg.SeedAdminPassword)
+		if err != nil {
+			log.Fatalf("initial admin: %v", err)
+		}
+		if created {
+			log.Printf("created initial administrator %s", cfg.SeedAdminEmail)
+		}
+	}
 
 	h := handlers.New(database, cfg)
 	r := server.NewRouter(h, cfg.CORSOrigins)

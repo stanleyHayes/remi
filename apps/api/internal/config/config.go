@@ -8,13 +8,14 @@ import (
 )
 
 type Config struct {
-	Environment       string
-	Port              string
-	MongoURI          string
-	JWTSecret         string
-	CORSOrigins       []string
-	SeedAdminEmail    string
-	SeedAdminPassword string
+	Environment         string
+	Port                string
+	MongoURI            string
+	JWTSecret           string
+	CORSOrigins         []string
+	SeedAdminEmail      string
+	SeedAdminPassword   string
+	SeedAdminConfigured bool
 
 	CloudinaryCloudName string
 	CloudinaryAPIKey    string
@@ -38,6 +39,7 @@ func Load() *Config {
 		loadDotEnv(".env")
 	}
 
+	seedAdminEmail, seedAdminPassword := os.Getenv("SEED_ADMIN_EMAIL"), os.Getenv("SEED_ADMIN_PASSWORD")
 	cfg := &Config{
 		Environment:         get("APP_ENV", get("ENV", "development")),
 		Port:                get("PORT", "8080"),
@@ -45,6 +47,7 @@ func Load() *Config {
 		JWTSecret:           get("JWT_SECRET", "dev-secret-change-me"),
 		SeedAdminEmail:      get("SEED_ADMIN_EMAIL", "admin@remi.church"),
 		SeedAdminPassword:   get("SEED_ADMIN_PASSWORD", "remi-admin-2026"),
+		SeedAdminConfigured: strings.TrimSpace(seedAdminEmail) != "" && seedAdminPassword != "",
 		CloudinaryCloudName: get("CLOUDINARY_CLOUD_NAME", ""),
 		CloudinaryAPIKey:    get("CLOUDINARY_API_KEY", ""),
 		CloudinaryAPISecret: get("CLOUDINARY_API_SECRET", ""),

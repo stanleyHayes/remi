@@ -84,7 +84,7 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 		httpx.Error(w, http.StatusBadRequest, "invalid JSON body")
 		return
 	}
-	email, password := httpx.Str(body, "email"), httpx.Str(body, "password")
+	email, password := strings.ToLower(strings.TrimSpace(httpx.Str(body, "email"))), httpx.Str(body, "password")
 	if email == "" || password == "" {
 		httpx.Error(w, http.StatusBadRequest, "email and password are required")
 		return
