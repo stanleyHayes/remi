@@ -29,8 +29,17 @@ async function get<T>(path: string): Promise<T | null> {
   }
 }
 
-export function getSettings(): Promise<Settings | null> {
-  return get<Settings>("/api/settings");
+export async function getSettings(): Promise<Settings> {
+  const remote = await get<Partial<Settings>>("/api/settings");
+  return {
+    ...FALLBACK_SETTINGS,
+    ...remote,
+    serviceTimes: Array.isArray(remote?.serviceTimes) ? remote.serviceTimes : FALLBACK_SETTINGS.serviceTimes,
+    socials: remote?.socials && typeof remote.socials === "object" ? remote.socials : FALLBACK_SETTINGS.socials,
+    givingCategories: Array.isArray(remote?.givingCategories)
+      ? remote.givingCategories
+      : FALLBACK_SETTINGS.givingCategories,
+  };
 }
 
 export function getPage(pageKey: string): Promise<Page | null> {

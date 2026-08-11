@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { FALLBACK_SETTINGS, getSettings } from "@/lib/api";
+import { getSettings } from "@/lib/api";
 import NewsletterForm from "./newsletter-form";
 
 const QUICK_LINKS = [
@@ -49,14 +49,7 @@ const SOCIAL_PATHS: Record<string, string> = {
 };
 
 export default async function SiteFooter() {
-  const remoteSettings = await getSettings();
-  const settings = {
-    ...FALLBACK_SETTINGS,
-    ...remoteSettings,
-    serviceTimes: remoteSettings?.serviceTimes ?? FALLBACK_SETTINGS.serviceTimes,
-    socials: remoteSettings?.socials ?? FALLBACK_SETTINGS.socials,
-    givingCategories: remoteSettings?.givingCategories ?? FALLBACK_SETTINGS.givingCategories,
-  };
+  const settings = await getSettings();
   const socials = Object.entries(settings.socials).filter(([, url]) => !!url);
 
   return (

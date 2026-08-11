@@ -10,7 +10,7 @@ export const metadata: Metadata = {
 };
 
 export default async function GivePage() {
-  const settings = (await getSettings()) ?? FALLBACK_SETTINGS;
+  const settings = await getSettings();
   const categories =
     settings.givingCategories?.length > 0 ? settings.givingCategories : FALLBACK_SETTINGS.givingCategories;
 

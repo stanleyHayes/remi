@@ -3,7 +3,7 @@ import Link from "next/link";
 import Reveal from "@/components/reveal";
 import VideoEmbed from "@/components/youtube-embed";
 import { BezelCard, CTAButton, Eyebrow, SectionHeading } from "@/components/ui";
-import { FALLBACK_SETTINGS, getSettings } from "@/lib/api";
+import { getSettings } from "@/lib/api";
 
 export const metadata: Metadata = {
   title: "Watch Live",
@@ -11,7 +11,7 @@ export const metadata: Metadata = {
 };
 
 export default async function LivePage() {
-  const settings = (await getSettings()) ?? FALLBACK_SETTINGS;
+  const settings = await getSettings();
 
   return (
     <section className="mx-auto max-w-6xl px-5 pb-28 pt-40 sm:px-8 sm:pt-48">
