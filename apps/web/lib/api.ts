@@ -68,6 +68,7 @@ export interface SermonQuery {
   topic?: string;
   q?: string;
   page?: string;
+  pageSize?: string;
 }
 
 export function getSermons(query: SermonQuery = {}): Promise<SermonListResponse | null> {

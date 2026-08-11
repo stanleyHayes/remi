@@ -3,12 +3,14 @@ import Reveal from "@/components/reveal";
 import { LeaderCard } from "@/components/cards";
 import { EmptyState, SectionHeading } from "@/components/ui";
 import { getLeadership } from "@/lib/api";
+import { pageMetadata } from "@/lib/seo";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = pageMetadata({
   title: "Leadership",
   description:
     "Meet the leaders of Ruach Elohim Ministries International, founded by Dr. Ismaila Hans Awudu.",
-};
+  path: "/leadership",
+});
 
 export default async function LeadershipPage() {
   const leaders = (await getLeadership()) ?? [];

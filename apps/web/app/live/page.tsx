@@ -4,11 +4,13 @@ import Reveal from "@/components/reveal";
 import VideoEmbed from "@/components/youtube-embed";
 import { BezelCard, CTAButton, Eyebrow, SectionHeading } from "@/components/ui";
 import { getSettings } from "@/lib/api";
+import { pageMetadata } from "@/lib/seo";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = pageMetadata({
   title: "Watch Live",
   description: "Join REMI Church live online — worship with us from anywhere in the world.",
-};
+  path: "/live",
+});
 
 export default async function LivePage() {
   const settings = await getSettings();

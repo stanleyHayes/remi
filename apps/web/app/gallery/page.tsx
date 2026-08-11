@@ -1,11 +1,13 @@
 import type { Metadata } from "next";
 import Reveal from "@/components/reveal";
 import { SectionHeading } from "@/components/ui";
+import { pageMetadata } from "@/lib/seo";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = pageMetadata({
   title: "Gallery",
   description: "Moments of worship, fellowship, and celebration at REMI Church.",
-};
+  path: "/gallery",
+});
 
 const SEEDS = [
   "remi-worship-1", "remi-praise-2", "remi-altar-3", "remi-choir-4", "remi-kids-5",

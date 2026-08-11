@@ -4,11 +4,13 @@ import { SermonCard } from "@/components/cards";
 import { EmptyState, SectionHeading } from "@/components/ui";
 import Select from "@/components/ui/Select";
 import { getSermons } from "@/lib/api";
+import { pageMetadata } from "@/lib/seo";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = pageMetadata({
   title: "Sermons",
   description: "Watch, listen, and grow — the sermon library of Ruach Elohim Ministries International.",
-};
+  path: "/sermons",
+});
 
 const selectCls =
   "w-full rounded-full border border-cream/15 bg-ink-soft px-5 py-3 text-sm text-cream focus:border-gold/50 focus:outline-none sm:w-auto";

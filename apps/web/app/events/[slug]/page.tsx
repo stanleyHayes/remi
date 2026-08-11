@@ -5,6 +5,7 @@ import EventRegistrationForm from "@/components/event-registration-form";
 import { BezelCard, EmptyState, Eyebrow } from "@/components/ui";
 import { getEvent } from "@/lib/api";
 import { formatDate, formatTime, img } from "@/lib/format";
+import { pageMetadata } from "@/lib/seo";
 
 export async function generateMetadata({
   params,
@@ -13,10 +14,12 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { slug } = await params;
   const event = await getEvent(slug);
-  return {
+  return pageMetadata({
     title: event?.title ?? "Event",
     description: event?.description ?? "An event at REMI Church.",
-  };
+    path: `/events/${slug}`,
+    image: event?.image,
+  });
 }
 
 export default async function EventDetailPage({

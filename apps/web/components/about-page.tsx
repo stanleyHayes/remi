@@ -3,6 +3,7 @@ import Reveal from "@/components/reveal";
 import { Eyebrow } from "@/components/ui";
 import { getPage } from "@/lib/api";
 import { img } from "@/lib/format";
+import { pageMetadata } from "@/lib/seo";
 
 const ABOUT_META: Record<
   string,
@@ -43,10 +44,12 @@ const ABOUT_META: Record<
 
 export function aboutMetadata(pageKey: string): Metadata {
   const meta = ABOUT_META[pageKey];
-  return {
+  const path = pageKey === "history" ? "/about" : `/about/${pageKey}`;
+  return pageMetadata({
     title: meta.title,
     description: meta.fallbackSubtitle,
-  };
+    path,
+  });
 }
 
 export default async function AboutPage({ pageKey }: { pageKey: string }) {

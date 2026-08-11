@@ -1,11 +1,13 @@
 import type { Metadata } from "next";
 import ConnectShell from "@/components/connect-shell";
 import { PrayerForm } from "@/components/connect-forms";
+import { pageMetadata } from "@/lib/seo";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = pageMetadata({
   title: "Prayer Request",
   description: "Send a prayer request to the REMI intercessory team — you are not alone.",
-};
+  path: "/connect/prayer",
+});
 
 export default function PrayerPage() {
   return (

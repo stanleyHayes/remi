@@ -3,11 +3,13 @@ import Reveal from "@/components/reveal";
 import GiveForm from "@/components/give-form";
 import { BezelCard, Eyebrow } from "@/components/ui";
 import { FALLBACK_SETTINGS, getSettings } from "@/lib/api";
+import { pageMetadata } from "@/lib/seo";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = pageMetadata({
   title: "Give",
   description: "Partner with what God is doing — give securely online to REMI Church.",
-};
+  path: "/give",
+});
 
 export default async function GivePage() {
   const settings = await getSettings();

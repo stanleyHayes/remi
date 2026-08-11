@@ -4,6 +4,7 @@ import Reveal from "@/components/reveal";
 import { BezelCard, CTAButton, EmptyState, Eyebrow } from "@/components/ui";
 import { getMinistry } from "@/lib/api";
 import { img } from "@/lib/format";
+import { pageMetadata } from "@/lib/seo";
 
 export async function generateMetadata({
   params,
@@ -12,10 +13,12 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { slug } = await params;
   const ministry = await getMinistry(slug);
-  return {
+  return pageMetadata({
     title: ministry?.name ?? "Ministry",
     description: ministry?.description ?? "A ministry of REMI Church.",
-  };
+    path: `/ministries/${slug}`,
+    image: ministry?.image,
+  });
 }
 
 export default async function MinistryDetailPage({

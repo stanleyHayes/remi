@@ -5,6 +5,7 @@ import VideoEmbed from "@/components/youtube-embed";
 import { BezelCard, EmptyState, Eyebrow } from "@/components/ui";
 import { getSermon } from "@/lib/api";
 import { formatDate } from "@/lib/format";
+import { pageMetadata } from "@/lib/seo";
 
 export async function generateMetadata({
   params,
@@ -13,10 +14,12 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { slug } = await params;
   const sermon = await getSermon(slug);
-  return {
+  return pageMetadata({
     title: sermon?.title ?? "Sermon",
     description: sermon?.description ?? `Watch this message from REMI Church.`,
-  };
+    path: `/sermons/${slug}`,
+    image: sermon?.image,
+  });
 }
 
 const metaLinkCls =

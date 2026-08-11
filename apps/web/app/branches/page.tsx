@@ -3,11 +3,13 @@ import Reveal from "@/components/reveal";
 import { BranchCard } from "@/components/cards";
 import { EmptyState, SectionHeading } from "@/components/ui";
 import { getBranches } from "@/lib/api";
+import { pageMetadata } from "@/lib/seo";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = pageMetadata({
   title: "Branches",
   description: "Find a REMI Church branch near you — locations and service times across Ghana.",
-};
+  path: "/branches",
+});
 
 export default async function BranchesPage() {
   const branches = (await getBranches()) ?? [];

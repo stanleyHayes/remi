@@ -1,11 +1,13 @@
 import type { Metadata } from "next";
 import ConnectShell from "@/components/connect-shell";
 import { ContactForm } from "@/components/connect-forms";
+import { pageMetadata } from "@/lib/seo";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = pageMetadata({
   title: "Contact Us",
   description: "Get in touch with Ruach Elohim Ministries International — we'd love to hear from you.",
-};
+  path: "/connect/contact",
+});
 
 export default function ContactPage() {
   return (

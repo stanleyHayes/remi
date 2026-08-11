@@ -3,11 +3,13 @@ import Reveal from "@/components/reveal";
 import { MinistryCard } from "@/components/cards";
 import { EmptyState, SectionHeading } from "@/components/ui";
 import { getMinistries } from "@/lib/api";
+import { pageMetadata } from "@/lib/seo";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = pageMetadata({
   title: "Ministries",
   description: "Find your place to serve and grow — the ministries of REMI Church.",
-};
+  path: "/ministries",
+});
 
 export default async function MinistriesPage() {
   const ministries = (await getMinistries()) ?? [];

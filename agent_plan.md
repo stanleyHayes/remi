@@ -304,6 +304,8 @@ A task is `DONE` only when **all** of the following hold (per company standard):
 
 ## 9. Work Log
 
+- 2026-08-11 | WEB | REMI-142 | IN PROGRESS | Shipped the production SEO foundation: canonical page metadata, Open Graph/Twitter metadata with a generated 1200x630 brand image, dynamic sitemap coverage, public robots rules, admin-wide crawl blocking, Church/Organization/WebSite JSON-LD, web manifest, and optional Google Search Console verification. Verified both production builds and inspected emitted canonical, robots, sitemap, JSON-LD and image metadata. Remaining before DONE: official logo/photography, Search Console verification/submission, analytics consent decision, CMS-authored SEO fields, and Lighthouse >=90 evidence on production.
+
 Newest entries at the top. Format: `timestamp | role | task-id | transition | note`
 
 - 2026-08-11 | DEVOPS/QA | REMI-103/104/165 | — | Prepared app-local production environments for Render/Vercel without exposing secrets. Created ignored mode-0600 `apps/api/.env.production`, `apps/web/.env.production`, and `apps/admin/.env.production`; copied and hash-verified configured Cloudinary, Resend, Paystack, seed and notification values; generated a new 64-character production JWT; set Vercel origins/admin invitation URL and expected `remi-api.onrender.com` frontend API URL. Render Blueprint now fixes production CORS/admin URL; deployment runbook added. Both production-scoped Next builds and Go format/vet/tests passed; a production-file API boot connected to the non-local MongoDB and returned health 200. Render-equivalent Docker build reached the final Go compile but was cancelled after the local Docker daemon stalled.

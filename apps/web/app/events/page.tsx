@@ -4,11 +4,13 @@ import Reveal from "@/components/reveal";
 import { EventCard } from "@/components/cards";
 import { EmptyState, SectionHeading } from "@/components/ui";
 import { getEvents } from "@/lib/api";
+import { pageMetadata } from "@/lib/seo";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = pageMetadata({
   title: "Events",
   description: "Conferences, services, and gatherings at Ruach Elohim Ministries International.",
-};
+  path: "/events",
+});
 
 export default async function EventsPage({
   searchParams,

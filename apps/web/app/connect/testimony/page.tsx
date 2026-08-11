@@ -1,11 +1,13 @@
 import type { Metadata } from "next";
 import ConnectShell from "@/components/connect-shell";
 import { TestimonyForm } from "@/components/connect-forms";
+import { pageMetadata } from "@/lib/seo";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = pageMetadata({
   title: "Share a Testimony",
   description: "What has God done for you? Share your testimony with the REMI family.",
-};
+  path: "/connect/testimony",
+});
 
 export default function TestimonyPage() {
   return (

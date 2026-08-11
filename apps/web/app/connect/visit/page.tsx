@@ -2,11 +2,13 @@ import type { Metadata } from "next";
 import ConnectShell from "@/components/connect-shell";
 import { VisitForm } from "@/components/connect-forms";
 import { getBranches } from "@/lib/api";
+import { pageMetadata } from "@/lib/seo";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = pageMetadata({
   title: "Plan Your Visit",
   description: "Coming to REMI Church for the first time? Tell us you're coming and we'll be ready for you.",
-};
+  path: "/connect/visit",
+});
 
 export default async function VisitPage() {
   const branches = (await getBranches()) ?? [];
