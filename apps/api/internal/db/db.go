@@ -33,9 +33,9 @@ func Connect(ctx context.Context, uri string) (*mongo.Client, *mongo.Database, e
 	return client, client.Database(name), nil
 }
 
-// EnsureInitialAdmin creates the explicitly configured deployment
-// administrator when that email does not exist. SetOnInsert is intentional:
-// later profile or password changes must survive service restarts.
+// EnsureInitialAdmin applies the versioned initial-admin migration once. It
+// creates a missing account or repairs the pre-migration demo account, then
+// records bootstrapVersion so later password changes survive every restart.
 func EnsureInitialAdmin(ctx context.Context, database *mongo.Database, email, password string) (bool, error) {
 	email = strings.ToLower(strings.TrimSpace(email))
 	if email == "" || password == "" {
@@ -45,22 +45,46 @@ func EnsureInitialAdmin(ctx context.Context, database *mongo.Database, email, pa
 	if err != nil {
 		return false, fmt.Errorf("hash initial admin password: %w", err)
 	}
-	now := time.Now()
-	result, err := database.Collection("users").UpdateOne(ctx,
-		bson.M{"email": email},
-		bson.M{"$setOnInsert": bson.M{
-			"email": email, "name": "REMI Administrator", "role": "super-admin",
-			"passwordHash": string(hash), "invitationStatus": "accepted",
-			"createdAt": now, "updatedAt": now,
-		}},
-		options.UpdateOne().SetUpsert(true),
-	)
-	if err != nil {
-		return false, fmt.Errorf("ensure initial admin: %w", err)
+	users := database.Collection("users")
+	var existing bson.M
+	err = users.FindOne(ctx, bson.M{"email": email}).Decode(&existing)
+	if err != nil && err != mongo.ErrNoDocuments {
+		return false, fmt.Errorf("find initial admin: %w", err)
 	}
-	_, _ = database.Collection("users").Indexes().CreateOne(ctx,
+	if err == nil {
+		versioned := false
+		switch version := existing["bootstrapVersion"].(type) {
+		case int32:
+			versioned = version >= 1
+		case int64:
+			versioned = version >= 1
+		case int:
+			versioned = version >= 1
+		}
+		if versioned {
+			return false, nil
+		}
+		_, err = users.UpdateOne(ctx, bson.M{"_id": existing["_id"]}, bson.M{"$set": bson.M{
+			"passwordHash": string(hash), "invitationStatus": "accepted",
+			"bootstrapVersion": int32(1), "updatedAt": time.Now(),
+		}})
+		if err != nil {
+			return false, fmt.Errorf("repair initial admin: %w", err)
+		}
+		return true, nil
+	}
+	now := time.Now()
+	_, err = users.InsertOne(ctx, bson.M{
+		"email": email, "name": "REMI Administrator", "role": "super-admin",
+		"passwordHash": string(hash), "invitationStatus": "accepted",
+		"bootstrapVersion": int32(1), "createdAt": now, "updatedAt": now,
+	})
+	if err != nil {
+		return false, fmt.Errorf("create initial admin: %w", err)
+	}
+	_, _ = users.Indexes().CreateOne(ctx,
 		mongo.IndexModel{Keys: bson.D{{Key: "email", Value: 1}}, Options: options.Index().SetUnique(true)})
-	return result.UpsertedCount == 1, nil
+	return true, nil
 }
 
 func dbName(uri string) string {
