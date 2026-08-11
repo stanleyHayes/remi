@@ -14,11 +14,11 @@ jobs:
     runs-on: ubuntu-latest
     services:
       mongo:
-        image: mongo:7
+        image: mongo:7.0.14
         ports:
           - 27017:27017
         options: >-
-          --health-cmd "mongosh --quiet --eval db.adminCommand('ping')"
+          --health-cmd "mongosh --quiet --host 127.0.0.1 --eval 'quit(db.runCommand({ ping: 1 }).ok ? 0 : 2)'"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 12
