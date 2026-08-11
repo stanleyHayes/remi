@@ -49,8 +49,15 @@ const SOCIAL_PATHS: Record<string, string> = {
 };
 
 export default async function SiteFooter() {
-  const settings = (await getSettings()) ?? FALLBACK_SETTINGS;
-  const socials = Object.entries(settings.socials ?? {}).filter(([, url]) => !!url);
+  const remoteSettings = await getSettings();
+  const settings = {
+    ...FALLBACK_SETTINGS,
+    ...remoteSettings,
+    serviceTimes: remoteSettings?.serviceTimes ?? FALLBACK_SETTINGS.serviceTimes,
+    socials: remoteSettings?.socials ?? FALLBACK_SETTINGS.socials,
+    givingCategories: remoteSettings?.givingCategories ?? FALLBACK_SETTINGS.givingCategories,
+  };
+  const socials = Object.entries(settings.socials).filter(([, url]) => !!url);
 
   return (
     <footer className="border-t border-cream/10 bg-ink-soft">
