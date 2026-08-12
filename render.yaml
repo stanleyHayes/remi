@@ -1,7 +1,7 @@
 # Render blueprint for the REMI platform.
 #
-# Only the API is deployed here. The two Next.js frontends (apps/web on :3010,
-# apps/admin on :3011) are deployed separately (e.g. Vercel) — Render's Node
+# Only the API is deployed here. The three Next.js frontends (apps/web on :3010,
+# apps/admin on :3011, apps/member on :3012) are deployed separately (e.g. Vercel) — Render's Node
 # runtime has no pnpm-monorepo story worth encoding here. Their
 # NEXT_PUBLIC_API_URL must point at this service's public URL, and
 # CORS_ORIGINS below must list theirs.
@@ -30,10 +30,14 @@ services:
         sync: false
       - key: JWT_SECRET
         generateValue: true
-      - key: CORS_ORIGINS # comma-separated web/admin origins
-        value: https://remi.vercel.app,https://remi-admin.vercel.app
+      - key: CORS_ORIGINS # comma-separated web/admin/member origins
+        value: https://remi.vercel.app,https://remi-admin.vercel.app,https://remi-member.vercel.app
       - key: ADMIN_APP_URL # invitation links
         value: https://remi-admin.vercel.app
+      - key: MEMBER_APP_URL # member invitation links
+        value: https://remi-member.vercel.app
+      - key: PUBLIC_WEB_URL # signed communication preference links
+        value: https://remi.vercel.app
       - key: SEED_ADMIN_EMAIL
         value: admin@remi.church
       - key: SEED_ADMIN_PASSWORD
@@ -53,3 +57,15 @@ services:
         sync: false
       - key: PAYSTACK_SECRET_KEY
         sync: false
+      - key: ARKESEL_API_KEY
+        sync: false
+      - key: SMS_SENDER
+        value: REMI
+      - key: WHATSAPP_ACCESS_TOKEN
+        sync: false
+      - key: WHATSAPP_PHONE_NUMBER_ID
+        sync: false
+      - key: WHATSAPP_GRAPH_VERSION
+        value: v23.0
+      - key: COMMUNICATION_WEBHOOK_SECRET # configure the same secret in the provider webhook adapter
+        generateValue: true

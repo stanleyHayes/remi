@@ -76,5 +76,8 @@ jobs:
       - name: Build admin
         run: pnpm --filter admin build
 
+      - name: Build member
+        run: pnpm --filter member build
+
       - name: Typecheck admin
         run: pnpm --filter admin typecheck
