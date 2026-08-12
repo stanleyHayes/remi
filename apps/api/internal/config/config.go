@@ -8,24 +8,35 @@ import (
 )
 
 type Config struct {
-	Environment       string
-	Port              string
-	MongoURI          string
-	JWTSecret         string
-	CORSOrigins       []string
-	SeedAdminEmail    string
-	SeedAdminPassword string
+	Environment        string
+	Port               string
+	MongoURI           string
+	JWTSecret          string
+	CORSOrigins        []string
+	SeedAdminEmail     string
+	SeedAdminPassword  string
+	SeedMemberOTP      string
+	CHMSOrganizationID string
 
 	CloudinaryCloudName string
 	CloudinaryAPIKey    string
 	CloudinaryAPISecret string
 
-	ResendAPIKey string
-	EmailFrom    string
-	NotifyEmail  string
-	AdminAppURL  string
+	ResendAPIKey               string
+	EmailFrom                  string
+	NotifyEmail                string
+	AdminAppURL                string
+	MemberAppURL               string
+	ArkeselAPIKey              string
+	SMSSender                  string
+	WhatsAppAccessToken        string
+	WhatsAppPhoneNumberID      string
+	WhatsAppGraphVersion       string
+	PublicWebURL               string
+	CommunicationWebhookSecret string
 
-	PaystackSecretKey string
+	PaystackSecretKey       string
+	RetentionSignalsEnabled bool
 }
 
 // Load reads a .env file in the working directory (if present) without
@@ -39,20 +50,31 @@ func Load() *Config {
 	}
 
 	cfg := &Config{
-		Environment:         get("APP_ENV", get("ENV", "development")),
-		Port:                get("PORT", "8080"),
-		MongoURI:            get("MONGODB_URI", "mongodb://localhost:27019/remi"),
-		JWTSecret:           get("JWT_SECRET", "dev-secret-change-me"),
-		SeedAdminEmail:      get("SEED_ADMIN_EMAIL", "admin@remi.church"),
-		SeedAdminPassword:   get("SEED_ADMIN_PASSWORD", "remi-admin-2026"),
-		CloudinaryCloudName: get("CLOUDINARY_CLOUD_NAME", ""),
-		CloudinaryAPIKey:    get("CLOUDINARY_API_KEY", ""),
-		CloudinaryAPISecret: get("CLOUDINARY_API_SECRET", ""),
-		ResendAPIKey:        get("RESEND_API_KEY", ""),
-		EmailFrom:           get("EMAIL_FROM", "REMI Church <noreply@remi.church>"),
-		NotifyEmail:         get("NOTIFY_EMAIL", "pastor@remi.church"),
-		AdminAppURL:         strings.TrimRight(get("ADMIN_APP_URL", "http://localhost:3011"), "/"),
-		PaystackSecretKey:   get("PAYSTACK_SECRET_KEY", ""),
+		Environment:                get("APP_ENV", get("ENV", "development")),
+		Port:                       get("PORT", "8080"),
+		MongoURI:                   get("MONGODB_URI", "mongodb://localhost:27019/remi"),
+		JWTSecret:                  get("JWT_SECRET", "dev-secret-change-me"),
+		SeedAdminEmail:             get("SEED_ADMIN_EMAIL", "admin@remi.church"),
+		SeedAdminPassword:          get("SEED_ADMIN_PASSWORD", "remi-admin-2026"),
+		SeedMemberOTP:              get("SEED_MEMBER_OTP", "260811"),
+		CHMSOrganizationID:         get("CHMS_ORGANIZATION_ID", "remi"),
+		CloudinaryCloudName:        get("CLOUDINARY_CLOUD_NAME", ""),
+		CloudinaryAPIKey:           get("CLOUDINARY_API_KEY", ""),
+		CloudinaryAPISecret:        get("CLOUDINARY_API_SECRET", ""),
+		ResendAPIKey:               get("RESEND_API_KEY", ""),
+		EmailFrom:                  get("EMAIL_FROM", "REMI Church <noreply@remi.church>"),
+		NotifyEmail:                get("NOTIFY_EMAIL", "pastor@remi.church"),
+		AdminAppURL:                strings.TrimRight(get("ADMIN_APP_URL", "http://localhost:3011"), "/"),
+		MemberAppURL:               strings.TrimRight(get("MEMBER_APP_URL", "http://localhost:3012"), "/"),
+		ArkeselAPIKey:              get("ARKESEL_API_KEY", ""),
+		SMSSender:                  get("SMS_SENDER", "REMI"),
+		WhatsAppAccessToken:        get("WHATSAPP_ACCESS_TOKEN", ""),
+		WhatsAppPhoneNumberID:      get("WHATSAPP_PHONE_NUMBER_ID", ""),
+		WhatsAppGraphVersion:       get("WHATSAPP_GRAPH_VERSION", "v23.0"),
+		PublicWebURL:               strings.TrimRight(get("PUBLIC_WEB_URL", "http://localhost:3000"), "/"),
+		CommunicationWebhookSecret: get("COMMUNICATION_WEBHOOK_SECRET", ""),
+		PaystackSecretKey:          get("PAYSTACK_SECRET_KEY", ""),
+		RetentionSignalsEnabled:    strings.EqualFold(get("CHMS_RETENTION_SIGNALS_ENABLED", "false"), "true"),
 	}
 
 	origins := get("CORS_ORIGINS", "http://localhost:3000,http://localhost:3001")
@@ -81,6 +103,12 @@ func (c *Config) ValidateProduction() error {
 	}
 	if len(c.CORSOrigins) == 0 {
 		missing = append(missing, "CORS_ORIGINS")
+	}
+	if strings.TrimSpace(c.PaystackSecretKey) == "" {
+		missing = append(missing, "PAYSTACK_SECRET_KEY")
+	}
+	if (strings.TrimSpace(c.ResendAPIKey) != "" || strings.TrimSpace(c.ArkeselAPIKey) != "" || strings.TrimSpace(c.WhatsAppAccessToken) != "") && strings.TrimSpace(c.CommunicationWebhookSecret) == "" {
+		missing = append(missing, "COMMUNICATION_WEBHOOK_SECRET (required when a communication provider is configured)")
 	}
 	if len(missing) > 0 {
 		return fmt.Errorf("invalid production configuration: %s", strings.Join(missing, ", "))

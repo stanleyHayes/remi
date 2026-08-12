@@ -60,7 +60,14 @@ func (h *Handler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 	}
 	var u bson.M
 	_ = h.DB.Collection("users").FindOne(r.Context(), bson.M{"_id": id}).Decode(&u)
-	token, _ := h.JWT.Generate(id.Hex(), email, name, fmt.Sprint(u["role"]))
+	claims := middleware.ClaimsFrom(r)
+	scope := scopeFromUser(u)
+	if claims != nil && claims.MFAAt > 0 {
+		token, _ := h.JWT.GenerateMFAAuthenticatedScoped(id.Hex(), email, name, fmt.Sprint(u["role"]), time.Unix(claims.MFAAt, 0), scope.BranchIDs, scope.MinistryIDs, scope.AssignedResourceIDs, scope.AccessVersion)
+		httpx.JSON(w, 200, bson.M{"user": publicUser(u), "token": token})
+		return
+	}
+	token, _ := h.JWT.GenerateScoped(id.Hex(), email, name, fmt.Sprint(u["role"]), scope.BranchIDs, scope.MinistryIDs, scope.AssignedResourceIDs, scope.AccessVersion)
 	httpx.JSON(w, 200, bson.M{"user": publicUser(u), "token": token})
 }
 
@@ -218,7 +225,8 @@ func (h *Handler) VerifyMFA(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	email, name, role := fmt.Sprint(u["email"]), fmt.Sprint(u["name"]), fmt.Sprint(u["role"])
-	token, _ := h.JWT.Generate(id.Hex(), email, name, role)
+	scope := scopeFromUser(u)
+	token, _ := h.JWT.GenerateMFAAuthenticatedScoped(id.Hex(), email, name, role, time.Now().UTC(), scope.BranchIDs, scope.MinistryIDs, scope.AssignedResourceIDs, scope.AccessVersion)
 	_, _ = h.DB.Collection("users").UpdateOne(r.Context(), bson.M{"_id": id}, bson.M{"$set": bson.M{"lastLoginAt": models.Now()}})
 	httpx.JSON(w, 200, bson.M{"token": token, "user": publicUser(u)})
 }

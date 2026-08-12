@@ -87,6 +87,107 @@ func EnsureInitialAdmin(ctx context.Context, database *mongo.Database, email, pa
 	return true, nil
 }
 
+// EnsureMemberAuthIndexes applies the member identity invariants. TTL indexes
+// remove expired one-time challenges and sessions; hashes are unique so an
+// invitation or refresh token cannot ambiguously resolve to multiple records.
+func EnsureMemberAuthIndexes(ctx context.Context, database *mongo.Database) error {
+	definitions := []struct {
+		collection string
+		models     []mongo.IndexModel
+	}{
+		{"chms_member_accounts", []mongo.IndexModel{
+			{Keys: bson.D{{Key: "organizationId", Value: 1}, {Key: "personId", Value: 1}}, Options: options.Index().SetUnique(true)},
+			{Keys: bson.D{{Key: "organizationId", Value: 1}, {Key: "emailNormalized", Value: 1}}, Options: options.Index().SetUnique(true)},
+			{Keys: bson.D{{Key: "organizationId", Value: 1}, {Key: "phoneNormalized", Value: 1}}, Options: options.Index().SetUnique(true).SetPartialFilterExpression(bson.M{"phoneNormalized": bson.M{"$gt": ""}})},
+			{Keys: bson.D{{Key: "invitationTokenHash", Value: 1}}, Options: options.Index().SetUnique(true).SetSparse(true)},
+		}},
+		{"chms_member_auth_challenges", []mongo.IndexModel{
+			{Keys: bson.D{{Key: "expiresAt", Value: 1}}, Options: options.Index().SetExpireAfterSeconds(0)},
+			{Keys: bson.D{{Key: "accountId", Value: 1}, {Key: "createdAt", Value: -1}}},
+		}},
+		{"chms_member_sessions", []mongo.IndexModel{
+			{Keys: bson.D{{Key: "refreshTokenHash", Value: 1}}, Options: options.Index().SetUnique(true)},
+			{Keys: bson.D{{Key: "expiresAt", Value: 1}}, Options: options.Index().SetExpireAfterSeconds(0)},
+			{Keys: bson.D{{Key: "accountId", Value: 1}, {Key: "revokedAt", Value: 1}, {Key: "lastSeenAt", Value: -1}}},
+		}},
+		{"chms_consent_events", []mongo.IndexModel{
+			{Keys: bson.D{{Key: "organizationId", Value: 1}, {Key: "personId", Value: 1}, {Key: "purpose", Value: 1}, {Key: "channel", Value: 1}, {Key: "occurredAt", Value: -1}}},
+		}},
+		{"chms_data_requests", []mongo.IndexModel{
+			{Keys: bson.D{{Key: "organizationId", Value: 1}, {Key: "personId", Value: 1}, {Key: "createdAt", Value: -1}}},
+			{Keys: bson.D{{Key: "organizationId", Value: 1}, {Key: "status", Value: 1}, {Key: "createdAt", Value: 1}}},
+			{Keys: bson.D{{Key: "organizationId", Value: 1}, {Key: "branchId", Value: 1}, {Key: "status", Value: 1}, {Key: "dueAt", Value: 1}}},
+		}},
+		{"chms_data_request_history", []mongo.IndexModel{
+			{Keys: bson.D{{Key: "organizationId", Value: 1}, {Key: "requestId", Value: 1}, {Key: "occurredAt", Value: 1}}},
+		}},
+		{"chms_household_access_delegations", []mongo.IndexModel{
+			{Keys: bson.D{{Key: "organizationId", Value: 1}, {Key: "grantorPersonId", Value: 1}, {Key: "state", Value: 1}, {Key: "expiresAt", Value: 1}}},
+			{Keys: bson.D{{Key: "organizationId", Value: 1}, {Key: "delegatePersonId", Value: 1}, {Key: "state", Value: 1}, {Key: "expiresAt", Value: 1}}},
+			{Keys: bson.D{{Key: "organizationId", Value: 1}, {Key: "grantorPersonId", Value: 1}, {Key: "delegatePersonId", Value: 1}, {Key: "state", Value: 1}}, Options: options.Index().SetUnique(true).SetPartialFilterExpression(bson.M{"state": "active"})},
+		}},
+		{"event_registrations", []mongo.IndexModel{
+			{Keys: bson.D{{Key: "organizationId", Value: 1}, {Key: "personId", Value: 1}, {Key: "createdAt", Value: -1}}},
+			{Keys: bson.D{{Key: "organizationId", Value: 1}, {Key: "eventId", Value: 1}, {Key: "personId", Value: 1}, {Key: "state", Value: 1}}, Options: options.Index().SetUnique(true).SetPartialFilterExpression(bson.M{"state": "confirmed", "personId": bson.M{"$type": "string"}})},
+			{Keys: bson.D{{Key: "organizationId", Value: 1}, {Key: "eventId", Value: 1}, {Key: "personId", Value: 1}, {Key: "activeKey", Value: 1}}, Options: options.Index().SetUnique(true).SetPartialFilterExpression(bson.M{"activeKey": true, "personId": bson.M{"$type": "string"}})},
+		}},
+		{"chms_event_registration_payments", []mongo.IndexModel{
+			{Keys: bson.D{{Key: "organizationId", Value: 1}, {Key: "bookingId", Value: 1}}, Options: options.Index().SetUnique(true)},
+			{Keys: bson.D{{Key: "organizationId", Value: 1}, {Key: "reference", Value: 1}}, Options: options.Index().SetUnique(true)},
+			{Keys: bson.D{{Key: "organizationId", Value: 1}, {Key: "registeredByPersonId", Value: 1}, {Key: "createdAt", Value: -1}}},
+		}},
+		{"chms_group_meeting_responses", []mongo.IndexModel{
+			{Keys: bson.D{{Key: "organizationId", Value: 1}, {Key: "meetingId", Value: 1}, {Key: "personId", Value: 1}}, Options: options.Index().SetUnique(true)},
+			{Keys: bson.D{{Key: "organizationId", Value: 1}, {Key: "groupId", Value: 1}, {Key: "personId", Value: 1}, {Key: "updatedAt", Value: -1}}},
+		}},
+		{"chms_group_meeting_response_events", []mongo.IndexModel{
+			{Keys: bson.D{{Key: "organizationId", Value: 1}, {Key: "meetingId", Value: 1}, {Key: "personId", Value: 1}, {Key: "occurredAt", Value: 1}}},
+		}},
+		{"chms_serving_checkins", []mongo.IndexModel{
+			{Keys: bson.D{{Key: "organizationId", Value: 1}, {Key: "assignmentId", Value: 1}, {Key: "personId", Value: 1}}, Options: options.Index().SetUnique(true)},
+			{Keys: bson.D{{Key: "organizationId", Value: 1}, {Key: "personId", Value: 1}, {Key: "checkedInAt", Value: -1}}},
+		}},
+		{"chms_member_pathway_requests", []mongo.IndexModel{
+			{Keys: bson.D{{Key: "organizationId", Value: 1}, {Key: "personId", Value: 1}, {Key: "type", Value: 1}, {Key: "state", Value: 1}, {Key: "createdAt", Value: -1}}},
+		}},
+		{"chms_member_child_prechecks", []mongo.IndexModel{
+			{Keys: bson.D{{Key: "organizationId", Value: 1}, {Key: "eventId", Value: 1}, {Key: "childPersonId", Value: 1}, {Key: "guardianPersonId", Value: 1}, {Key: "state", Value: 1}}, Options: options.Index().SetUnique(true).SetPartialFilterExpression(bson.M{"state": "prepared"})},
+			{Keys: bson.D{{Key: "expiresAt", Value: 1}}, Options: options.Index().SetExpireAfterSeconds(0)},
+		}},
+		{"chms_member_care_requests", []mongo.IndexModel{
+			{Keys: bson.D{{Key: "organizationId", Value: 1}, {Key: "personId", Value: 1}, {Key: "createdAt", Value: -1}}, Options: options.Index().SetPartialFilterExpression(bson.M{"personId": bson.M{"$type": "string"}})},
+			{Keys: bson.D{{Key: "organizationId", Value: 1}, {Key: "state", Value: 1}, {Key: "createdAt", Value: 1}}},
+		}},
+		{"chms_member_pastoral_appointments", []mongo.IndexModel{
+			{Keys: bson.D{{Key: "organizationId", Value: 1}, {Key: "personId", Value: 1}, {Key: "createdAt", Value: -1}}},
+			{Keys: bson.D{{Key: "organizationId", Value: 1}, {Key: "state", Value: 1}, {Key: "createdAt", Value: 1}}},
+		}},
+		{"chms_member_content_saves", []mongo.IndexModel{
+			{Keys: bson.D{{Key: "organizationId", Value: 1}, {Key: "personId", Value: 1}, {Key: "contentType", Value: 1}, {Key: "contentId", Value: 1}}, Options: options.Index().SetUnique(true)},
+			{Keys: bson.D{{Key: "organizationId", Value: 1}, {Key: "personId", Value: 1}, {Key: "saved", Value: 1}, {Key: "updatedAt", Value: -1}}},
+		}},
+		{"chms_member_communication_preferences", []mongo.IndexModel{
+			{Keys: bson.D{{Key: "organizationId", Value: 1}, {Key: "personId", Value: 1}}, Options: options.Index().SetUnique(true)},
+		}},
+		{"chms_member_inbox_states", []mongo.IndexModel{
+			{Keys: bson.D{{Key: "organizationId", Value: 1}, {Key: "personId", Value: 1}, {Key: "deliveryId", Value: 1}}, Options: options.Index().SetUnique(true)},
+		}},
+		{"chms_member_group_messages", []mongo.IndexModel{
+			{Keys: bson.D{{Key: "organizationId", Value: 1}, {Key: "groupId", Value: 1}, {Key: "state", Value: 1}, {Key: "createdAt", Value: -1}}},
+		}},
+		{"chms_member_client_events", []mongo.IndexModel{
+			{Keys: bson.D{{Key: "organizationId", Value: 1}, {Key: "type", Value: 1}, {Key: "route", Value: 1}, {Key: "recordedAt", Value: -1}}},
+			{Keys: bson.D{{Key: "expiresAt", Value: 1}}, Options: options.Index().SetExpireAfterSeconds(0)},
+		}},
+	}
+	for _, definition := range definitions {
+		if _, err := database.Collection(definition.collection).Indexes().CreateMany(ctx, definition.models); err != nil {
+			return fmt.Errorf("ensure %s indexes: %w", definition.collection, err)
+		}
+	}
+	return nil
+}
+
 func dbName(uri string) string {
 	u, err := url.Parse(uri)
 	if err != nil {

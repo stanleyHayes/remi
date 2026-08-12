@@ -27,6 +27,7 @@ type Handler struct {
 	Cfg      *config.Config
 	JWT      *services.JWTService
 	Email    *services.EmailService
+	SMS      *services.SMSService
 	Paystack *services.PaystackService
 	Cloud    *services.CloudinaryService
 }
@@ -37,6 +38,7 @@ func New(db *mongo.Database, cfg *config.Config) *Handler {
 		Cfg:      cfg,
 		JWT:      services.NewJWTService(cfg.JWTSecret),
 		Email:    services.NewEmailService(cfg.ResendAPIKey, cfg.EmailFrom),
+		SMS:      services.NewSMSService(cfg.ArkeselAPIKey, cfg.SMSSender),
 		Paystack: services.NewPaystackService(cfg.PaystackSecretKey),
 		Cloud:    services.NewCloudinaryService(cfg.CloudinaryCloudName, cfg.CloudinaryAPIKey, cfg.CloudinaryAPISecret),
 	}
@@ -147,7 +149,18 @@ func (h *Handler) ListBranches(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	httpx.JSON(w, http.StatusOK, models.NormalizeAll(docs))
+	branches := models.NormalizeAll(docs)
+	// Branch slugs are the stable operational identifiers used by CHMS records.
+	// Preserve the CMS document id separately so public content editing and
+	// operational filtering cannot silently drift onto different identifiers.
+	for _, branch := range branches {
+		branch["contentId"] = branch["id"]
+		if slug, valid := branch["slug"].(string); valid && strings.TrimSpace(slug) != "" {
+			branch["id"] = slug
+			branch["operationalId"] = slug
+		}
+	}
+	httpx.JSON(w, http.StatusOK, branches)
 }
 
 // ── Sermons ───────────────────────────────────────────────────────
@@ -319,7 +332,8 @@ func (h *Handler) RegisterForEvent(w http.ResponseWriter, r *http.Request) {
 
 	reg := bson.M{
 		"eventId": id.Hex(), "name": name, "email": email,
-		"phone": httpx.Str(body, "phone"), "createdAt": models.Now(),
+		"normalizedEmail": strings.ToLower(strings.TrimSpace(email)),
+		"phone":           httpx.Str(body, "phone"), "createdAt": models.Now(),
 	}
 	if _, err := h.DB.Collection("event_registrations").InsertOne(ctx, reg); err != nil {
 		httpx.Error(w, http.StatusInternalServerError, "database error")
@@ -395,15 +409,50 @@ func (h *Handler) submitForm(w http.ResponseWriter, r *http.Request, coll string
 }
 
 func (h *Handler) SubmitPrayer(w http.ResponseWriter, r *http.Request) {
-	h.submitForm(w, r, "prayer_requests", []string{"request"},
-		func(b bson.M) bson.M {
-			return bson.M{
-				"name": httpx.Str(b, "name"), "email": httpx.Str(b, "email"),
-				"request":   httpx.Str(b, "request"),
-				"isPrivate": b["isPrivate"] == true, "status": "new",
-			}
-		},
-		"New prayer request", "<p>A new prayer request was submitted on the REMI website.</p>")
+	body, err := httpx.Decode(r)
+	if err != nil {
+		httpx.Error(w, http.StatusBadRequest, "invalid JSON body")
+		return
+	}
+	if httpx.Str(body, "website") != "" {
+		httpx.JSON(w, http.StatusCreated, bson.M{"message": "received"})
+		return
+	}
+	request := strings.TrimSpace(httpx.Str(body, "request"))
+	if request == "" || len(request) > 10000 {
+		httpx.Error(w, http.StatusBadRequest, "request is required and must be under 10000 characters")
+		return
+	}
+	identityMode := strings.ToLower(strings.TrimSpace(httpx.Str(body, "identityMode")))
+	if identityMode == "" {
+		identityMode = "identified"
+	}
+	visibility := strings.ToLower(strings.TrimSpace(httpx.Str(body, "visibility")))
+	if visibility == "" {
+		if body["isPrivate"] == true {
+			visibility = "pastors-only"
+		} else {
+			visibility = "prayer-team"
+		}
+	}
+	if (identityMode != "identified" && identityMode != "anonymous") || (visibility != "pastors-only" && visibility != "prayer-team") {
+		httpx.Error(w, http.StatusBadRequest, "choose anonymous or identified, and pastors-only or prayer-team visibility")
+		return
+	}
+	doc := bson.M{"request": request, "identityMode": identityMode, "visibility": visibility, "status": "new", "createdAt": models.Now(), "profileLinkStatus": "not-requested"}
+	if identityMode == "identified" {
+		doc["name"], doc["email"] = strings.TrimSpace(httpx.Str(body, "name")), strings.ToLower(strings.TrimSpace(httpx.Str(body, "email")))
+		if body["linkToProfile"] == true && body["linkConsent"] == true && doc["email"] != "" {
+			doc["profileLinkStatus"] = "pending-verification"
+			doc["profileLinkConsent"] = bson.M{"state": "granted", "source": "public-prayer-form", "noticeVersion": "prayer-link-2026-01", "capturedAt": models.Now()}
+		}
+	}
+	if _, err = h.DB.Collection("prayer_requests").InsertOne(r.Context(), doc); err != nil {
+		httpx.Error(w, http.StatusInternalServerError, "database error")
+		return
+	}
+	go h.Email.Send(h.Cfg.NotifyEmail, "New prayer request", "<p>A new prayer request was submitted on the REMI website.</p>")
+	httpx.JSON(w, http.StatusCreated, bson.M{"message": "received"})
 }
 
 func (h *Handler) SubmitContact(w http.ResponseWriter, r *http.Request) {

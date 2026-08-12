@@ -27,6 +27,14 @@ func (c *CloudinaryService) Configured() bool {
 
 // Signature returns the params a browser needs for a signed direct upload.
 func (c *CloudinaryService) Signature(folder string) (map[string]any, error) {
+	return c.signature(folder, "")
+}
+
+func (c *CloudinaryService) AuthenticatedSignature(folder string) (map[string]any, error) {
+	return c.signature(folder, "authenticated")
+}
+
+func (c *CloudinaryService) signature(folder, deliveryType string) (map[string]any, error) {
 	if !c.Configured() {
 		return nil, errors.New("cloudinary not configured")
 	}
@@ -39,6 +47,9 @@ func (c *CloudinaryService) Signature(folder string) (map[string]any, error) {
 		"folder":    folder,
 		"timestamp": fmt.Sprint(timestamp),
 	}
+	if deliveryType != "" {
+		params["type"] = deliveryType
+	}
 	keys := make([]string, 0, len(params))
 	for k := range params {
 		keys = append(keys, k)
@@ -50,11 +61,15 @@ func (c *CloudinaryService) Signature(folder string) (map[string]any, error) {
 	}
 	sum := sha1.Sum([]byte(strings.Join(parts, "&") + c.apiSecret))
 
-	return map[string]any{
+	result := map[string]any{
 		"cloudName": c.cloudName,
 		"apiKey":    c.apiKey,
 		"timestamp": timestamp,
 		"folder":    folder,
 		"signature": hex.EncodeToString(sum[:]),
-	}, nil
+	}
+	if deliveryType != "" {
+		result["type"] = deliveryType
+	}
+	return result, nil
 }

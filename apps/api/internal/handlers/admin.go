@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
@@ -13,6 +14,7 @@ import (
 	"go.mongodb.org/mongo-driver/v2/mongo"
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
 
+	chmsplatform "remi-api/internal/chms/platform"
 	"remi-api/internal/handlers/httpx"
 	"remi-api/internal/middleware"
 	"remi-api/internal/models"
@@ -23,6 +25,144 @@ type crudResource struct {
 	collection string
 	// slugSource lists body fields to derive a slug from, in priority order.
 	slugSource []string
+}
+
+func (h *Handler) AdminUpdateUserScopes(w http.ResponseWriter, r *http.Request) {
+	claims := middleware.ClaimsFrom(r)
+	if claims == nil {
+		httpx.Error(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+	id, err := bson.ObjectIDFromHex(chi.URLParam(r, "id"))
+	if err != nil {
+		httpx.Error(w, http.StatusNotFound, "user not found")
+		return
+	}
+	body, err := httpx.Decode(r)
+	if err != nil {
+		httpx.Error(w, http.StatusBadRequest, "invalid JSON body")
+		return
+	}
+	reason := strings.TrimSpace(httpx.Str(body, "reason"))
+	expectedVersion := int64FromBSON(body["expectedAccessVersion"])
+	branchIDs, ministryIDs := stringsFromBSON(body["branchIds"]), stringsFromBSON(body["ministryIds"])
+	if expectedVersion < 0 || len(reason) < 8 || len(reason) > 300 {
+		httpx.Error(w, http.StatusBadRequest, "expected access version and a reason of 8 to 300 characters are required")
+		return
+	}
+	var target bson.M
+	if err = h.DB.Collection("users").FindOne(r.Context(), bson.M{"_id": id}).Decode(&target); err != nil {
+		httpx.Error(w, http.StatusNotFound, "user not found")
+		return
+	}
+	currentRole := strings.TrimSpace(fmt.Sprint(target["role"]))
+	role := strings.TrimSpace(httpx.Str(body, "role"))
+	if role == "" {
+		role = currentRole
+	}
+	if !validStaffRole(role) {
+		httpx.Error(w, http.StatusBadRequest, "role is not supported")
+		return
+	}
+	roleChanged := role != currentRole
+	now := time.Now().UTC()
+	if roleChanged {
+		if claims.MFAAt == 0 || now.Sub(time.Unix(claims.MFAAt, 0).UTC()) > 10*time.Minute || now.Before(time.Unix(claims.MFAAt, 0).UTC()) {
+			httpx.Error(w, http.StatusForbidden, "recent MFA verification is required to change a role")
+			return
+		}
+		if claims.UserID == id.Hex() {
+			httpx.Error(w, http.StatusConflict, "you cannot change your own role")
+			return
+		}
+		if currentRole == "super-admin" {
+			count, countErr := h.DB.Collection("users").CountDocuments(r.Context(), bson.M{"role": "super-admin", "invitationStatus": bson.M{"$in": bson.A{"accepted", "active"}}})
+			if countErr != nil {
+				httpx.Error(w, http.StatusInternalServerError, "could not verify administrator coverage")
+				return
+			}
+			if count <= 1 {
+				httpx.Error(w, http.StatusConflict, "the final super administrator cannot be demoted")
+				return
+			}
+		}
+	}
+	if role == "super-admin" {
+		branchIDs, ministryIDs = []string{"*"}, []string{"*"}
+	}
+	if role != "editor" && role != "viewer" && role != "super-admin" && len(branchIDs) == 0 {
+		httpx.Error(w, http.StatusBadRequest, "choose at least one branch for this operational role")
+		return
+	}
+	if role != "super-admin" && (!h.validScopeReferences(r, "branches", branchIDs) || !h.validScopeReferences(r, "ministries", ministryIDs)) {
+		httpx.Error(w, http.StatusBadRequest, "one or more scope choices no longer exist")
+		return
+	}
+	store, storeErr := chmsplatform.NewMongoPlatformStore(h.DB)
+	if storeErr != nil {
+		httpx.Error(w, http.StatusInternalServerError, "scope store is unavailable")
+		return
+	}
+	err = store.WithTransaction(r.Context(), func(tx context.Context) error {
+		versionFilter := bson.M{"accessVersion": expectedVersion}
+		if expectedVersion == 0 {
+			versionFilter = bson.M{"$or": bson.A{bson.M{"accessVersion": int64(0)}, bson.M{"accessVersion": bson.M{"$exists": false}}}}
+		}
+		filter := bson.M{"_id": id}
+		for key, value := range versionFilter {
+			filter[key] = value
+		}
+		result, updateErr := h.DB.Collection("users").UpdateOne(tx, filter, bson.M{"$set": bson.M{"role": role, "branchIds": branchIDs, "ministryIds": ministryIDs, "updatedAt": now}, "$inc": bson.M{"accessVersion": 1}})
+		if updateErr != nil {
+			return updateErr
+		}
+		if result.MatchedCount != 1 {
+			return fmt.Errorf("access version conflict")
+		}
+		changed := []string{"branchIds", "ministryIds", "accessVersion"}
+		action := "staff.access-scope.update"
+		if roleChanged {
+			changed = append(changed, "role")
+			action = "staff.access-role.update"
+		}
+		return store.AppendAudit(tx, chmsplatform.AuditEvent{ID: chmsplatform.ID(bson.NewObjectID().Hex()), OrganizationID: chmsplatform.ID(h.Cfg.CHMSOrganizationID), Actor: chmsplatform.Actor{Type: chmsplatform.ActorStaff, ID: chmsplatform.ID(claims.UserID)}, Action: action, ResourceType: "staff-user", ResourceID: chmsplatform.ID(id.Hex()), ChangedFields: changed, Outcome: "success", Reason: reason, RequestID: chmsplatform.RequestIDFrom(r.Context()), OccurredAt: now})
+	})
+	if err != nil {
+		if strings.Contains(err.Error(), "version conflict") {
+			httpx.Error(w, http.StatusConflict, "access scope changed; reload before saving")
+			return
+		}
+		httpx.Error(w, http.StatusInternalServerError, "could not update access scope")
+		return
+	}
+	target["role"], target["branchIds"], target["ministryIds"], target["accessVersion"] = role, branchIDs, ministryIDs, expectedVersion+1
+	httpx.JSON(w, http.StatusOK, publicUserWithScopes(target))
+}
+
+func (h *Handler) validScopeReferences(r *http.Request, collection string, ids []string) bool {
+	for _, id := range ids {
+		if id == "" || id == "*" || len(id) > 100 {
+			return false
+		}
+		filters := bson.A{bson.M{"slug": id}, bson.M{"id": id}}
+		if objectID, err := bson.ObjectIDFromHex(id); err == nil {
+			filters = append(filters, bson.M{"_id": objectID})
+		}
+		if count, err := h.DB.Collection(collection).CountDocuments(r.Context(), bson.M{"$or": filters}); err != nil || count != 1 {
+			return false
+		}
+	}
+	return true
+}
+
+func publicUserWithScopes(user bson.M) bson.M {
+	value := publicUser(user)
+	value["branchIds"], value["ministryIds"], value["accessVersion"] = user["branchIds"], user["ministryIds"], int64FromBSON(user["accessVersion"])
+	return value
+}
+
+func validStaffRole(role string) bool {
+	return map[string]bool{"super-admin": true, "editor": true, "viewer": true, "pastor": true, "branch-admin": true, "membership-admin": true, "group-admin": true, "volunteer-coordinator": true, "finance-counter": true, "finance-admin": true, "finance-approver": true, "finance-auditor": true, "auditor": true, "data-protection-supervisor": true}[role]
 }
 
 var contentResources = map[string]crudResource{
@@ -411,7 +551,7 @@ func (h *Handler) AdminListUsers(w http.ResponseWriter, r *http.Request) {
 	users := make([]bson.M, 0, len(docs))
 	for _, doc := range docs {
 		user := bson.M{}
-		for _, field := range []string{"email", "name", "role", "invitationStatus", "invitedAt", "activatedAt", "createdAt", "lastLoginAt"} {
+		for _, field := range []string{"email", "name", "role", "invitationStatus", "invitedAt", "activatedAt", "createdAt", "lastLoginAt", "branchIds", "ministryIds", "assignedResourceIds", "accessVersion"} {
 			if value, exists := doc[field]; exists {
 				user[field] = value
 			}
@@ -436,8 +576,26 @@ func (h *Handler) AdminCreateUser(w http.ResponseWriter, r *http.Request) {
 		httpx.Error(w, http.StatusBadRequest, "a valid email is required")
 		return
 	}
-	if _, ok := map[string]bool{"super-admin": true, "editor": true, "viewer": true}[role]; !ok {
-		httpx.Error(w, http.StatusBadRequest, "role must be super-admin, editor or viewer")
+	if !validStaffRole(role) {
+		httpx.Error(w, http.StatusBadRequest, "role is not supported")
+		return
+	}
+	branchIDs := stringsFromBSON(body["branchIds"])
+	ministryIDs := stringsFromBSON(body["ministryIds"])
+	if role == "super-admin" {
+		branchIDs, ministryIDs = []string{"*"}, []string{"*"}
+	} else if role != "editor" && role != "viewer" && len(branchIDs) == 0 {
+		httpx.Error(w, http.StatusBadRequest, "choose at least one branch for this operational role")
+		return
+	}
+	for _, value := range append(append([]string{}, branchIDs...), ministryIDs...) {
+		if (value == "*" && role != "super-admin") || len(value) > 100 {
+			httpx.Error(w, http.StatusBadRequest, "scope identifiers are invalid")
+			return
+		}
+	}
+	if !h.validScopeReferences(r, "branches", branchIDs) || !h.validScopeReferences(r, "ministries", ministryIDs) {
+		httpx.Error(w, http.StatusBadRequest, "one or more scope choices no longer exist")
 		return
 	}
 	var existing bson.M
@@ -453,7 +611,7 @@ func (h *Handler) AdminCreateUser(w http.ResponseWriter, r *http.Request) {
 	token := randHex(32)
 	sum := sha256.Sum256([]byte(token))
 	now, expires := models.Now(), time.Now().Add(48*time.Hour)
-	update := bson.M{"$set": bson.M{"email": email, "role": role, "name": "", "invitationStatus": "pending", "invitationTokenHash": hex.EncodeToString(sum[:]), "invitedAt": now, "invitationExpiresAt": expires, "updatedAt": now}, "$setOnInsert": bson.M{"createdAt": now}}
+	update := bson.M{"$set": bson.M{"email": email, "role": role, "branchIds": branchIDs, "ministryIds": ministryIDs, "assignedResourceIds": bson.A{}, "accessVersion": int64(0), "name": "", "invitationStatus": "pending", "invitationTokenHash": hex.EncodeToString(sum[:]), "invitedAt": now, "invitationExpiresAt": expires, "updatedAt": now}, "$setOnInsert": bson.M{"createdAt": now}}
 	result, err := h.DB.Collection("users").UpdateOne(r.Context(), bson.M{"email": email}, update, options.UpdateOne().SetUpsert(true))
 	if err != nil {
 		httpx.Error(w, http.StatusInternalServerError, "could not create invitation")
@@ -487,7 +645,18 @@ func (h *Handler) AdminUploadSignature(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	body, _ := httpx.Decode(r)
-	params, err := h.Cloud.Signature(httpx.Str(body, "folder"))
+	var params map[string]any
+	var err error
+	if httpx.Str(body, "purpose") == "finance-settlement" {
+		claims := middleware.ClaimsFrom(r)
+		if claims == nil || (claims.Role != "finance-admin" && claims.Role != "super-admin") {
+			httpx.Error(w, http.StatusForbidden, "finance administrator access required")
+			return
+		}
+		params, err = h.Cloud.AuthenticatedSignature("remi/finance/settlements")
+	} else {
+		params, err = h.Cloud.Signature(httpx.Str(body, "folder"))
+	}
 	if err != nil {
 		httpx.Error(w, http.StatusNotImplemented, err.Error())
 		return

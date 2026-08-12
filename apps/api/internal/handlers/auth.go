@@ -70,7 +70,8 @@ func (h *Handler) AcceptInvitation(w http.ResponseWriter, r *http.Request) {
 	oid, _ := user["_id"].(bson.ObjectID)
 	email, _ := user["email"].(string)
 	role, _ := user["role"].(string)
-	token, err := h.JWT.Generate(oid.Hex(), email, name, role)
+	scope := scopeFromUser(user)
+	token, err := h.JWT.GenerateScoped(oid.Hex(), email, name, role, scope.BranchIDs, scope.MinistryIDs, scope.AssignedResourceIDs, scope.AccessVersion)
 	if err != nil {
 		httpx.Error(w, http.StatusInternalServerError, "could not issue session")
 		return
@@ -122,7 +123,8 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 	}
 	name, _ := user["name"].(string)
 	role, _ := user["role"].(string)
-	token, err := h.JWT.Generate(oid.Hex(), email, name, role)
+	scope := scopeFromUser(user)
+	token, err := h.JWT.GenerateScoped(oid.Hex(), email, name, role, scope.BranchIDs, scope.MinistryIDs, scope.AssignedResourceIDs, scope.AccessVersion)
 	if err != nil {
 		httpx.Error(w, http.StatusInternalServerError, "could not issue token")
 		return

@@ -8,6 +8,8 @@ import (
 	"sync"
 	"time"
 
+	"go.mongodb.org/mongo-driver/v2/bson"
+	"go.mongodb.org/mongo-driver/v2/mongo"
 	"remi-api/internal/handlers/httpx"
 	"remi-api/internal/services"
 )
@@ -19,6 +21,38 @@ const claimsKey ctxKey = "claims"
 func ClaimsFrom(r *http.Request) *services.Claims {
 	c, _ := r.Context().Value(claimsKey).(*services.Claims)
 	return c
+}
+
+// StaffAuth additionally checks the persisted access version for scoped staff
+// tokens. Incrementing that version invalidates every existing staff token
+// immediately after a role or scope change. Legacy unversioned tokens remain
+// accepted only for migration and test fixtures until their natural expiry.
+func StaffAuth(jwtSvc *services.JWTService, database *mongo.Database) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return Auth(jwtSvc)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			claims := ClaimsFrom(r)
+			if claims == nil || claims.Role == "member" || claims.AccessVersion == nil || database == nil {
+				next.ServeHTTP(w, r)
+				return
+			}
+			storageID := any(claims.UserID)
+			if objectID, err := bson.ObjectIDFromHex(claims.UserID); err == nil {
+				storageID = objectID
+			}
+			var row struct {
+				AccessVersion    int64  `bson:"accessVersion"`
+				InvitationStatus string `bson:"invitationStatus"`
+				Role             string `bson:"role"`
+			}
+			err := database.Collection("users").FindOne(r.Context(), bson.M{"_id": storageID}).Decode(&row)
+			active := row.InvitationStatus == "accepted" || row.InvitationStatus == "active" || row.InvitationStatus == ""
+			if err != nil || !active || row.Role != claims.Role || row.AccessVersion != *claims.AccessVersion {
+				httpx.Error(w, http.StatusUnauthorized, "access changed; sign in again")
+				return
+			}
+			next.ServeHTTP(w, r)
+		}))
+	}
 }
 
 // Auth validates the Bearer token and stores claims on the request context.
@@ -41,7 +75,7 @@ func Auth(jwtSvc *services.JWTService) func(http.Handler) http.Handler {
 	}
 }
 
-var roleRank = map[string]int{"viewer": 1, "editor": 2, "super-admin": 3}
+var roleRank = map[string]int{"viewer": 1, "pastor": 1, "branch-admin": 1, "membership-admin": 1, "group-admin": 1, "volunteer-coordinator": 1, "finance-counter": 1, "finance-admin": 1, "finance-approver": 1, "finance-auditor": 1, "auditor": 1, "data-protection-supervisor": 1, "editor": 2, "super-admin": 3}
 
 // RequireRole allows only users whose role rank is >= min.
 func RequireRole(min string) func(http.Handler) http.Handler {
