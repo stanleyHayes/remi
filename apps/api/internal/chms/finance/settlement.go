@@ -729,13 +729,21 @@ func (r *Repository) FindPeriodControlRequest(ctx context.Context, org, id platf
 	return &value, err
 }
 func (s Service) ListPeriodControlRequests(ctx context.Context, p platform.Principal, periodID platform.ID) ([]PeriodControlRequest, error) {
-	if !s.allowed(p, "read", "") || !periodID.Valid() {
+	if !s.allowed(p, "read", "") {
 		return nil, denied()
 	}
 	return s.Repository.ListPeriodControlRequests(ctx, p.OrganizationID, periodID)
 }
+
+// ListPeriodControlRequests returns requests for one period, or every period in
+// the organization when periodID is empty. The configuration screen needs the
+// organization-wide view to badge each period with its pending request.
 func (r *Repository) ListPeriodControlRequests(ctx context.Context, org, periodID platform.ID) ([]PeriodControlRequest, error) {
-	cursor, err := r.database.Collection(periodControlRequestsCollection).Find(ctx, bson.M{"organizationId": org, "periodId": periodID}, options.Find().SetSort(bson.D{{Key: "requestedAt", Value: -1}}).SetLimit(50))
+	filter := bson.M{"organizationId": org}
+	if periodID.Valid() {
+		filter["periodId"] = periodID
+	}
+	cursor, err := r.database.Collection(periodControlRequestsCollection).Find(ctx, filter, options.Find().SetSort(bson.D{{Key: "requestedAt", Value: -1}}).SetLimit(50))
 	if err != nil {
 		return nil, err
 	}
