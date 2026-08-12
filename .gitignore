@@ -8,4 +8,8 @@ apps/api/bin/
 .env.local
 .env.production
 .env.production.local
+credentials.txt
 .DS_Store
+
+# Local agent tooling state (session counters, caches) — machine-specific.
+.raven/
