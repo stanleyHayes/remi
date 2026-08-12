@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Reveal from "@/components/reveal";
 import { LeaderCard } from "@/components/cards";
-import { EmptyState, SectionHeading } from "@/components/ui";
+import { EmptyState, PageBanner } from "@/components/ui";
 import { getLeadership } from "@/lib/api";
 import { pageMetadata } from "@/lib/seo";
 
@@ -19,12 +19,13 @@ export default async function LeadershipPage() {
   const rest = sorted.filter((l) => l !== founder);
 
   return (
-    <section className="mx-auto max-w-7xl px-5 pb-28 pt-40 sm:px-8 sm:pt-48">
+    <section className="listing-page-shell">
       <Reveal>
-        <SectionHeading
+        <PageBanner
           eyebrow="Servant Leaders"
           title="The people God has set over the house"
           copy="Called, tested, and anointed — our leadership team serves the REMI family with humility and fire."
+          index="05"
         />
       </Reveal>
 

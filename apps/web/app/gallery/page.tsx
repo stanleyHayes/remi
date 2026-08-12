@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Reveal from "@/components/reveal";
-import { SectionHeading } from "@/components/ui";
+import { PageBanner } from "@/components/ui";
 import { pageMetadata } from "@/lib/seo";
 
 export const metadata: Metadata = pageMetadata({
@@ -17,12 +17,13 @@ const SEEDS = [
 
 export default function GalleryPage() {
   return (
-    <section className="mx-auto max-w-7xl px-5 pb-28 pt-40 sm:px-8 sm:pt-48">
+    <section className="listing-page-shell">
       <Reveal>
-        <SectionHeading
+        <PageBanner
           eyebrow="Life at REMI"
           title="Gallery"
           copy="Glimpses of what God is doing in our midst — worship, word, and family."
+          index="03"
         />
       </Reveal>
       <div className="mt-14 columns-1 gap-5 sm:columns-2 lg:columns-3 [&>*]:mb-5">

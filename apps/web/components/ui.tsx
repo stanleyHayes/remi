@@ -77,6 +77,38 @@ export function SectionHeading({
   );
 }
 
+export function PageBanner({
+  eyebrow,
+  title,
+  copy,
+  index = "01",
+  children,
+}: {
+  eyebrow: string;
+  title: string;
+  copy?: string;
+  index?: string;
+  children?: ReactNode;
+}) {
+  return (
+    <header className="page-banner">
+      <div className="page-banner-orbit" aria-hidden><i /><i /></div>
+      <span className="page-banner-number" aria-hidden>{index}</span>
+      <div className="page-banner-copy">
+        <p className="page-banner-kicker"><span />{eyebrow}</p>
+        <h1>{title}</h1>
+      </div>
+      <div className="page-banner-aside">
+        {copy ? <p>{copy}</p> : null}
+        {children ? <div className="page-banner-actions">{children}</div> : null}
+      </div>
+      <div className="page-banner-foot" aria-hidden>
+        <span>REMI / ACCRA</span><i /><span>SCROLL TO EXPLORE</span>
+      </div>
+    </header>
+  );
+}
+
 export function EmptyState({ title, copy }: { title: string; copy?: string }) {
   return (
     <div className="rounded-[2rem] border border-cream/10 bg-ink-soft p-10 text-center sm:p-14">

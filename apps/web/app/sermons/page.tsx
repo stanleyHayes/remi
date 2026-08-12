@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Reveal from "@/components/reveal";
 import { SermonCard } from "@/components/cards";
-import { EmptyState, SectionHeading } from "@/components/ui";
+import { EmptyState, PageBanner } from "@/components/ui";
 import Select from "@/components/ui/Select";
 import { getSermons } from "@/lib/api";
 import { pageMetadata } from "@/lib/seo";
@@ -50,12 +50,13 @@ export default async function SermonsPage({
   }
 
   return (
-    <section className="mx-auto max-w-7xl px-5 pb-28 pt-40 sm:px-8 sm:pt-48">
+    <section className="listing-page-shell">
       <Reveal>
-        <SectionHeading
+        <PageBanner
           eyebrow="The Word"
           title="Sermon library"
           copy="Search by preacher, series, or topic — every message is an invitation to go deeper."
+          index="02"
         />
       </Reveal>
 

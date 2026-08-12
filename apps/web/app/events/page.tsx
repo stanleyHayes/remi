@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import Reveal from "@/components/reveal";
 import { EventCard } from "@/components/cards";
-import { EmptyState, SectionHeading } from "@/components/ui";
+import { EmptyState, PageBanner } from "@/components/ui";
 import { getEvents } from "@/lib/api";
 import { pageMetadata } from "@/lib/seo";
 
@@ -27,14 +27,14 @@ export default async function EventsPage({
     }`;
 
   return (
-    <section className="mx-auto max-w-7xl px-5 pb-28 pt-40 sm:px-8 sm:pt-48">
+    <section className="listing-page-shell">
       <Reveal>
-        <div className="flex flex-wrap items-end justify-between gap-8">
-          <SectionHeading
+          <PageBanner
             eyebrow="Gather With Us"
             title="Events & conferences"
             copy="Mark your calendar — these are the moments God has set apart for us as a family."
-          />
+            index="06"
+          >
           <div className="flex rounded-full border border-cream/10 bg-ink-soft p-1.5">
             <Link href="/events" className={tabCls(when === "upcoming")}>
               Upcoming
@@ -43,7 +43,7 @@ export default async function EventsPage({
               Past
             </Link>
           </div>
-        </div>
+          </PageBanner>
       </Reveal>
 
       {events.length === 0 ? (

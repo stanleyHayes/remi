@@ -21,16 +21,30 @@ const CONNECT_LINKS = [
   { href: "/give", label: "Give" },
 ];
 
-function SocialIcon({ label, href, path }: { label: string; href: string; path: string }) {
+function SocialIcon({
+  label,
+  href,
+  path,
+}: {
+  label: string;
+  href: string;
+  path: string;
+}) {
   return (
     <a
       href={href}
       target="_blank"
       rel="noopener noreferrer"
       aria-label={label}
-      className="flex h-10 w-10 items-center justify-center rounded-full border border-cream/10 bg-cream/5 text-cream-dim transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] hover:border-gold/40 hover:text-gold-bright"
+      className="public-footer-social"
     >
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+      <svg
+        width="16"
+        height="16"
+        viewBox="0 0 24 24"
+        fill="currentColor"
+        aria-hidden
+      >
         <path d={path} />
       </svg>
     </a>
@@ -51,86 +65,174 @@ const SOCIAL_PATHS: Record<string, string> = {
 export default async function SiteFooter() {
   const settings = await getSettings();
   const socials = Object.entries(settings.socials).filter(([, url]) => !!url);
+  const serviceTimes = settings.serviceTimes ?? [];
+  const primaryService = serviceTimes[0];
 
   return (
-    <footer className="border-t border-cream/10 bg-ink-soft">
-      <div className="mx-auto max-w-7xl px-5 py-20 sm:px-8 sm:py-24">
-        <div className="grid gap-14 lg:grid-cols-12">
-          {/* Brand + newsletter */}
-          <div className="lg:col-span-5">
-            <p className="font-display text-3xl font-medium tracking-tight text-cream">
-              {settings.churchName}
+    <footer className="public-footer">
+      <div className="public-footer-orbit" aria-hidden>
+        <span />
+        <span />
+        <span />
+      </div>
+      <div className="public-footer-word" aria-hidden>
+        RUACH
+      </div>
+      <div className="public-footer-inner">
+        <section
+          className="public-footer-invitation"
+          aria-labelledby="footer-invitation"
+        >
+          <div>
+            <p className="public-footer-kicker">
+              <span /> Spirit · Word · Community
             </p>
-            <p className="mt-3 max-w-sm text-sm leading-relaxed text-cream-dim">{settings.tagline}</p>
-            <div className="mt-8">
-              <p className="mb-4 text-[10px] font-medium uppercase tracking-[0.22em] text-gold-bright">
-                Stay connected
-              </p>
-              <NewsletterForm />
+            <h2 id="footer-invitation">
+              There is a place
+              <br />
+              <em>for you here.</em>
+            </h2>
+          </div>
+          <div className="public-footer-invitation-side">
+            <p>
+              Come as you are. Meet a community growing in faith, purpose and
+              the life of the Spirit.
+            </p>
+            <div className="public-footer-actions">
+              <Link href="/connect/visit" className="public-footer-primary">
+                Plan your visit <Arrow />
+              </Link>
+              <Link href="/live" className="public-footer-text-link">
+                Watch online <Arrow />
+              </Link>
             </div>
+          </div>
+        </section>
+
+        <div className="public-footer-main">
+          <section className="public-footer-brand" aria-label="About REMI">
+            <div className="public-footer-mark" aria-hidden>
+              <span>R</span>
+              <i />
+            </div>
+            <p className="public-footer-church-name">{settings.churchName}</p>
+            <p className="public-footer-tagline">{settings.tagline}</p>
             {socials.length > 0 ? (
-              <div className="mt-8 flex gap-3">
+              <div className="public-footer-socials">
                 {socials.map(([name, url]) => (
-                  <SocialIcon key={name} label={name} href={url as string} path={SOCIAL_PATHS[name] ?? SOCIAL_PATHS.facebook} />
+                  <SocialIcon
+                    key={name}
+                    label={name}
+                    href={url as string}
+                    path={SOCIAL_PATHS[name] ?? SOCIAL_PATHS.facebook}
+                  />
                 ))}
               </div>
             ) : null}
-          </div>
+          </section>
 
-          {/* Service times */}
-          <div className="lg:col-span-3">
-            <p className="text-[10px] font-medium uppercase tracking-[0.22em] text-gold-bright">Service Times</p>
-            <ul className="mt-5 space-y-5">
-              {settings.serviceTimes.map((s) => (
-                <li key={`${s.name}-${s.day}`}>
-                  <p className="text-sm font-medium text-cream">{s.name}</p>
-                  <p className="mt-1 text-sm text-cream-dim">
-                    {s.day}s · {s.time}
-                  </p>
-                  <p className="text-xs text-cream-dim/70">{s.location}</p>
-                </li>
-              ))}
-            </ul>
-          </div>
+          <section
+            className="public-footer-gathering"
+            aria-labelledby="footer-gathering"
+          >
+            <p className="public-footer-label">Next gathering</p>
+            {primaryService ? (
+              <>
+                <h3 id="footer-gathering">{primaryService.name}</h3>
+                <p className="public-footer-time">
+                  {primaryService.day}s <span>·</span> {primaryService.time}
+                </p>
+                <p className="public-footer-location">
+                  {primaryService.location}
+                </p>
+                {serviceTimes.length > 1 ? (
+                  <div className="public-footer-more-times">
+                    {serviceTimes.slice(1).map((service) => (
+                      <div key={`${service.name}-${service.day}`}>
+                        <span>{service.name}</span>
+                        <time>
+                          {service.day}s · {service.time}
+                        </time>
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
+              </>
+            ) : (
+              <>
+                <h3 id="footer-gathering">Join us in Accra</h3>
+                <p className="public-footer-location">
+                  Service details are being updated.
+                </p>
+              </>
+            )}
+            <Link href="/connect/visit" className="public-footer-directions">
+              Plan the journey <Arrow />
+            </Link>
+          </section>
 
-          {/* Links */}
-          <div className="grid grid-cols-2 gap-10 lg:col-span-4">
-            <div>
-              <p className="text-[10px] font-medium uppercase tracking-[0.22em] text-gold-bright">Explore</p>
-              <ul className="mt-5 space-y-3">
-                {QUICK_LINKS.map((l) => (
-                  <li key={l.href}>
-                    <Link href={l.href} className="text-sm text-cream-dim transition-colors duration-300 hover:text-cream">
-                      {l.label}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </div>
-            <div>
-              <p className="text-[10px] font-medium uppercase tracking-[0.22em] text-gold-bright">Connect</p>
-              <ul className="mt-5 space-y-3">
-                {CONNECT_LINKS.map((l) => (
-                  <li key={l.href}>
-                    <Link href={l.href} className="text-sm text-cream-dim transition-colors duration-300 hover:text-cream">
-                      {l.label}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </div>
+          <section
+            className="public-footer-letter"
+            aria-labelledby="footer-letter"
+          >
+            <p className="public-footer-label">A note for your week</p>
+            <h3 id="footer-letter">Stay close to what God is doing.</h3>
+            <p>
+              Occasional encouragement, ministry updates and invitations. No
+              noise.
+            </p>
+            <NewsletterForm />
+          </section>
         </div>
 
-        <div className="mt-16 flex flex-col gap-4 border-t border-cream/10 pt-8 text-xs text-cream-dim/70 sm:flex-row sm:items-center sm:justify-between">
+        <nav
+          className="public-footer-navigation"
+          aria-label="Footer navigation"
+        >
+          <div>
+            <p className="public-footer-label">Explore REMI</p>
+            {QUICK_LINKS.map((link, index) => (
+              <Link href={link.href} key={link.href}>
+                <span>{String(index + 1).padStart(2, "0")}</span>
+                {link.label}
+                <Arrow />
+              </Link>
+            ))}
+          </div>
+          <div>
+            <p className="public-footer-label">Take a next step</p>
+            {CONNECT_LINKS.map((link, index) => (
+              <Link href={link.href} key={link.href}>
+                <span>{String(index + 1).padStart(2, "0")}</span>
+                {link.label}
+                <Arrow />
+              </Link>
+            ))}
+          </div>
+        </nav>
+
+        <div className="public-footer-bottom">
           <p>
-            © {new Date().getFullYear()} {settings.churchName}. All rights reserved.
+            © {new Date().getFullYear()} {settings.churchName}
           </p>
-          <p>
-            {[settings.address, settings.phone, settings.email].filter(Boolean).join(" · ") || "Accra, Ghana"}
+          <p className="public-footer-contact">
+            {[settings.address, settings.phone, settings.email]
+              .filter(Boolean)
+              .join(" · ") || "Accra, Ghana"}
           </p>
+          <Link href="#top">
+            Back to top <span aria-hidden>↑</span>
+          </Link>
         </div>
       </div>
     </footer>
+  );
+}
+
+function Arrow() {
+  return (
+    <svg viewBox="0 0 20 20" fill="none" aria-hidden>
+      <path d="M4 10h11M11 5l5 5-5 5" />
+    </svg>
   );
 }

@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Reveal from "@/components/reveal";
 import { BranchCard } from "@/components/cards";
-import { EmptyState, SectionHeading } from "@/components/ui";
+import { EmptyState, PageBanner } from "@/components/ui";
 import { getBranches } from "@/lib/api";
 import { pageMetadata } from "@/lib/seo";
 
@@ -15,12 +15,13 @@ export default async function BranchesPage() {
   const branches = (await getBranches()) ?? [];
 
   return (
-    <section className="mx-auto max-w-7xl px-5 pb-28 pt-40 sm:px-8 sm:pt-48">
+    <section className="listing-page-shell">
       <Reveal>
-        <SectionHeading
+        <PageBanner
           eyebrow="One Family, Many Homes"
           title="Our branches"
           copy="Wherever you are, there's a REMI family nearby ready to welcome you."
+          index="01"
         />
       </Reveal>
 

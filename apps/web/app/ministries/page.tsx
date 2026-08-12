@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Reveal from "@/components/reveal";
 import { MinistryCard } from "@/components/cards";
-import { EmptyState, SectionHeading } from "@/components/ui";
+import { EmptyState, PageBanner } from "@/components/ui";
 import { getMinistries } from "@/lib/api";
 import { pageMetadata } from "@/lib/seo";
 
@@ -15,12 +15,13 @@ export default async function MinistriesPage() {
   const ministries = (await getMinistries()) ?? [];
 
   return (
-    <section className="mx-auto max-w-7xl px-5 pb-28 pt-40 sm:px-8 sm:pt-48">
+    <section className="listing-page-shell">
       <Reveal>
-        <SectionHeading
+        <PageBanner
           eyebrow="Belong & Build"
           title="Ministries"
           copy="Every member is a minister. Discover where your gifts come alive."
+          index="04"
         />
       </Reveal>
 

@@ -29,6 +29,32 @@ async function get<T>(path: string): Promise<T | null> {
   }
 }
 
+export interface FundraisingCampaign {
+  id: string;
+  slug: string;
+  title: string;
+  summary: string;
+  story: string;
+  coverImageUrl?: string;
+  fundId: string;
+  goal: { amountMinor: number; currency: string };
+  startsAt: string;
+  endsAt: string;
+  status: "published" | "completed";
+  featured: boolean;
+  raisedAmountMinor: number;
+  giftCount: number;
+}
+
+export async function getFundraisingCampaigns(): Promise<FundraisingCampaign[]> {
+  const response = await get<{ items?: FundraisingCampaign[] }>("/api/fundraising/campaigns");
+  return Array.isArray(response?.items) ? response.items : [];
+}
+
+export function getFundraisingCampaign(slug: string): Promise<FundraisingCampaign | null> {
+  return get<FundraisingCampaign>(`/api/fundraising/campaigns/${encodeURIComponent(slug)}`);
+}
+
 export async function getSettings(): Promise<Settings> {
   const remote = await get<Partial<Settings>>("/api/settings");
   return {

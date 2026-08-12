@@ -93,6 +93,7 @@ function readForm(e: FormEvent<HTMLFormElement>): Record<string, string> {
 
 export function PrayerForm() {
   const [state, setState] = useState<SubmitState>("idle");
+  const [identityMode, setIdentityMode] = useState<"identified" | "anonymous">("identified");
   async function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setState("loading");
@@ -101,7 +102,10 @@ export function PrayerForm() {
       name: f.name || undefined,
       email: f.email || undefined,
       request: f.request,
-      isPrivate: f.isPrivate === "on",
+      identityMode,
+      visibility: f.visibility,
+      linkToProfile: f.linkToProfile === "on",
+      linkConsent: f.linkToProfile === "on",
       website: f.website,
     });
     setState(ok ? "done" : "error");
@@ -114,19 +118,29 @@ export function PrayerForm() {
       successTitle="We've received your request"
       successCopy="Our intercessory team will stand with you in prayer. You are not alone — God hears."
     >
-      <Field label="Name (optional)">
-        <input name="name" autoComplete="name" className={inputCls} placeholder="Your name" />
-      </Field>
-      <Field label="Email (optional)">
-        <input name="email" type="email" autoComplete="email" inputMode="email" className={inputCls} placeholder="you@example.com" />
-      </Field>
+      <fieldset>
+        <legend className="mb-2 text-[10px] font-medium uppercase tracking-[0.2em] text-cream-dim">How should we receive this?</legend>
+        <div className="grid gap-2 sm:grid-cols-2">
+          {([['identified','With my details','The team may contact me.'],['anonymous','Anonymously','No name or email will be stored.']] as const).map(([value,label,copy])=><label className={`cursor-pointer rounded-2xl border p-4 transition-colors ${identityMode===value?'border-gold/40 bg-gold/10':'border-cream/10 bg-cream/[0.025]'}`} key={value}><input className="sr-only" type="radio" name="identityMode" value={value} checked={identityMode===value} onChange={()=>setIdentityMode(value)}/><span className="block text-sm font-medium text-cream">{label}</span><small className="mt-1 block text-xs text-cream-dim">{copy}</small></label>)}
+        </div>
+      </fieldset>
+      {identityMode === "identified" ? <div className="grid gap-5 sm:grid-cols-2">
+        <Field label="Name (optional)"><input name="name" autoComplete="name" className={inputCls} placeholder="Your name" /></Field>
+        <Field label="Email (optional)"><input name="email" type="email" autoComplete="email" inputMode="email" className={inputCls} placeholder="you@example.com" /></Field>
+      </div> : null}
       <Field label="Prayer Request">
         <textarea name="request" required rows={5} className={inputCls} placeholder="What would you like us to pray about?" />
       </Field>
-      <label className="flex items-center gap-3 text-sm text-cream-dim">
-        <input type="checkbox" name="isPrivate" className="h-4 w-4 accent-[#c9a227]" />
-        Keep this private — pastors only
-      </label>
+      <Field label="Who may see this request?">
+        <Select name="visibility" defaultValue="pastors-only" className={inputCls}>
+          <option value="pastors-only">Pastors only</option>
+          <option value="prayer-team">Approved prayer team</option>
+        </Select>
+      </Field>
+      {identityMode === "identified" ? <label className="flex items-start gap-3 rounded-2xl border border-cream/10 bg-cream/[0.025] p-4 text-sm text-cream-dim">
+        <input type="checkbox" name="linkToProfile" className="mt-0.5 h-4 w-4 accent-[#c9a227]" />
+        <span><b className="block font-medium text-cream">Request profile linkage</b><small className="mt-1 block leading-relaxed">I consent to REMI verifying my identity and linking this request to my member profile under prayer notice prayer-link-2026-01. Public requests are never linked automatically.</small></span>
+      </label> : null}
     </FormFrame>
   );
 }

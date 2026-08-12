@@ -1,17 +1,15 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
-import { apiBaseUrl as API_URL } from "@/lib/env";
+import { useRef, useState, type FormEvent } from "react";
 import Select from "@/components/ui/Select";
-
-const inputCls =
-  "w-full rounded-2xl border border-cream/15 bg-cream/5 px-5 py-3.5 text-sm text-cream placeholder:text-cream-dim/60 focus:border-gold/50 focus:outline-none transition-colors duration-300";
+import { apiBaseUrl as API_URL } from "@/lib/env";
 
 const PRESETS = [50, 100, 200, 500, 1000];
 
-export default function GiveForm({ categories }: { categories: string[] }) {
-  const [amount, setAmount] = useState<string>("100");
+export default function GiveForm({ categories, campaign }: { categories: string[]; campaign?: { id: string; title: string } }) {
+  const [amount, setAmount] = useState("100");
   const [state, setState] = useState<"idle" | "loading" | "error">("idle");
+  const lastRequest = useRef<{ payload: string; key: string } | null>(null);
 
   async function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -23,15 +21,23 @@ export default function GiveForm({ categories }: { categories: string[] }) {
       return;
     }
     try {
-      const res = await fetch(`${API_URL}/api/giving/initialize`, {
+      const payload = JSON.stringify({
+        amount: Math.round(cedis * 100),
+        email: data.get("email"),
+        category: data.get("category"),
+        campaignId: campaign?.id,
+        website: data.get("website"),
+      });
+      if (lastRequest.current?.payload !== payload) {
+        lastRequest.current = { payload, key: crypto.randomUUID() };
+      }
+      const res = await fetch(`${API_URL}/api/payments/paystack/intents`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          amount: Math.round(cedis * 100), // pesewas
-          email: data.get("email"),
-          category: data.get("category"),
-          website: data.get("website"),
-        }),
+        headers: {
+          "Content-Type": "application/json",
+          "Idempotency-Key": lastRequest.current.key,
+        },
+        body: payload,
       });
       if (!res.ok) throw new Error("failed");
       const json = (await res.json()) as { authorizationUrl?: string };
@@ -46,84 +52,112 @@ export default function GiveForm({ categories }: { categories: string[] }) {
   }
 
   return (
-    <form onSubmit={onSubmit} className="space-y-5 rounded-[calc(2rem-0.375rem)] bg-ink-soft p-7 sm:p-10">
-      <div>
-        <span className="mb-2 block text-[10px] font-medium uppercase tracking-[0.2em] text-cream-dim">
-          Amount (GHS)
-        </span>
-        <div className="flex flex-wrap gap-2">
-          {PRESETS.map((p) => (
+    <form onSubmit={onSubmit} className="give-form">
+      <div className="give-form-heading">
+        <p>Secure online giving</p>
+        <span>GHS</span>
+      </div>
+
+      <fieldset>
+        <legend>Choose an amount</legend>
+        <div className="give-amount-presets">
+          {PRESETS.map((preset) => (
             <button
-              key={p}
+              key={preset}
               type="button"
-              onClick={() => setAmount(String(p))}
-              className={`rounded-full px-5 py-2.5 text-sm font-medium transition-all duration-300 ${
-                amount === String(p)
-                  ? "bg-gold text-ink"
-                  : "border border-cream/15 text-cream-dim hover:border-gold/40 hover:text-cream"
-              }`}
+              onClick={() => {
+                setAmount(String(preset));
+                setState("idle");
+              }}
+              aria-pressed={amount === String(preset)}
             >
-              ₵{p.toLocaleString()}
+              <span>₵</span>
+              {preset.toLocaleString()}
             </button>
           ))}
         </div>
-        <div className="relative mt-3">
-          <span className="absolute left-5 top-1/2 -translate-y-1/2 text-sm text-cream-dim">₵</span>
+        <label className="give-custom-amount">
+          <span>Or enter another amount</span>
+          <div>
+            <b>₵</b>
+            <input
+              name="amount"
+              inputMode="decimal"
+              value={amount}
+              onChange={(e) => {
+                setAmount(e.target.value.replace(/[^0-9.]/g, ""));
+                setState("idle");
+              }}
+              placeholder="0.00"
+              aria-label="Custom amount in Ghana cedis"
+            />
+          </div>
+        </label>
+      </fieldset>
+
+      <div className="give-form-fields">
+        <label>
+          <span>Direct my gift to</span>
+          {campaign ? (
+            <input name="category" value={campaign.title} readOnly aria-label="Fundraising campaign" />
+          ) : (
+            <Select name="category" defaultValue={categories[0] ?? "Offering"} aria-label="Giving category">
+              {categories.map((category) => <option key={category} value={category}>{category}</option>)}
+            </Select>
+          )}
+        </label>
+        <label>
+          <span>Receipt email</span>
           <input
-            name="amount"
-            inputMode="decimal"
-            value={amount}
-            onChange={(e) => setAmount(e.target.value.replace(/[^0-9.]/g, ""))}
-            className={`${inputCls} pl-9`}
-            placeholder="Custom amount"
-            aria-label="Amount in Ghana cedis"
+            name="email"
+            type="email"
+            required
+            autoComplete="email"
+            placeholder="you@example.com"
           />
-        </div>
+        </label>
       </div>
 
-      <label className="block">
-        <span className="mb-2 block text-[10px] font-medium uppercase tracking-[0.2em] text-cream-dim">
-          Giving Category
-        </span>
-        <Select name="category" defaultValue={categories[0] ?? "Offering"} aria-label="Giving Category">
-          {categories.map((c) => (
-            <option key={c} value={c}>
-              {c}
-            </option>
-          ))}
-        </Select>
-      </label>
-
-      <label className="block">
-        <span className="mb-2 block text-[10px] font-medium uppercase tracking-[0.2em] text-cream-dim">
-          Email
-        </span>
-        <input name="email" type="email" required className={inputCls} placeholder="you@example.com" />
-      </label>
-
-      <input type="text" name="website" tabIndex={-1} autoComplete="off" className="hidden" aria-hidden="true" />
+      <input
+        type="text"
+        name="website"
+        tabIndex={-1}
+        autoComplete="off"
+        className="hidden"
+        aria-hidden="true"
+      />
 
       <button
         type="submit"
         disabled={state === "loading"}
-        className="w-full rounded-full bg-gold px-6 py-4 text-sm font-semibold text-ink transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] hover:bg-gold-bright active:scale-[0.99] disabled:opacity-60"
+        className="give-submit"
       >
-        {state === "loading" ? "Preparing secure checkout…" : "Give Securely"}
+        <span>
+          {state === "loading"
+            ? "Preparing checkout…"
+            : "Continue to secure checkout"}
+        </span>
+        <svg viewBox="0 0 20 20" fill="none" aria-hidden>
+          <path d="M4 10h11M11 5l5 5-5 5" />
+        </svg>
       </button>
 
-      {state === "error" ? (
-        <p className="text-center text-xs text-red-400">
-          We couldn&apos;t start the checkout — please check the amount and try again.
+      {state === "error" && (
+        <p className="give-form-error" role="alert">
+          We couldn’t start checkout. Check your amount and try again.
         </p>
-      ) : null}
+      )}
 
-      <p className="flex items-center justify-center gap-2 text-center text-[11px] text-cream-dim/70">
-        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-          <rect x="4" y="10" width="16" height="10" rx="2" />
-          <path d="M8 10V7a4 4 0 0 1 8 0v3" />
-        </svg>
-        Secure giving via Paystack
-      </p>
+      <div className="give-form-trust">
+        <span>
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden>
+            <rect x="4" y="10" width="16" height="10" rx="2" />
+            <path d="M8 10V7a4 4 0 0 1 8 0v3" />
+          </svg>
+          Encrypted checkout
+        </span>
+        <span>Powered by Paystack</span>
+      </div>
     </form>
   );
 }

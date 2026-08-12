@@ -6,7 +6,14 @@ import SiteHeader from "@/components/site-header";
 import SiteFooter from "@/components/site-footer";
 import { getSettings } from "@/lib/api";
 import { FooterSkeleton, HeaderSkeleton } from "@/components/skeletons";
-import { absoluteUrl, DEFAULT_DESCRIPTION, safeJsonLd, SITE_NAME, SITE_SHORT_NAME, SITE_URL } from "@/lib/seo";
+import {
+  absoluteUrl,
+  DEFAULT_DESCRIPTION,
+  safeJsonLd,
+  SITE_NAME,
+  SITE_SHORT_NAME,
+  SITE_URL,
+} from "@/lib/seo";
 
 const outfit = Outfit({
   subsets: ["latin"],
@@ -66,12 +73,14 @@ export const metadata: Metadata = {
 
 async function ConnectedHeader() {
   const settings = await getSettings();
-	return <SiteHeader isLive={settings?.isLive ?? false} />;
+  return <SiteHeader isLive={settings?.isLive ?? false} />;
 }
 
 async function OrganizationJsonLd() {
   const settings = await getSettings();
-  const sameAs = Object.values(settings.socials).filter((url): url is string => Boolean(url));
+  const sameAs = Object.values(settings.socials).filter((url): url is string =>
+    Boolean(url),
+  );
   const graph = {
     "@context": "https://schema.org",
     "@graph": [
@@ -105,18 +114,35 @@ async function OrganizationJsonLd() {
       },
     ],
   };
-  return <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: safeJsonLd(graph) }} />;
+  return (
+    <script
+      type="application/ld+json"
+      dangerouslySetInnerHTML={{ __html: safeJsonLd(graph) }}
+    />
+  );
 }
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
-
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
     <html lang="en" className={outfit.variable} data-scroll-behavior="smooth">
-      <body className="grain min-h-[100dvh] bg-ink font-sans text-cream antialiased">
-		<Suspense fallback={null}><OrganizationJsonLd /></Suspense>
-		<Suspense fallback={<HeaderSkeleton />}><ConnectedHeader /></Suspense>
+      <body
+        id="top"
+        className="grain min-h-[100dvh] bg-ink font-sans text-cream antialiased"
+      >
+        <Suspense fallback={null}>
+          <OrganizationJsonLd />
+        </Suspense>
+        <Suspense fallback={<HeaderSkeleton />}>
+          <ConnectedHeader />
+        </Suspense>
         <main>{children}</main>
-		<Suspense fallback={<FooterSkeleton />}><SiteFooter /></Suspense>
+        <Suspense fallback={<FooterSkeleton />}>
+          <SiteFooter />
+        </Suspense>
       </body>
     </html>
   );
