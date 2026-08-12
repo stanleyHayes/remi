@@ -1,0 +1,88 @@
+/* REMI choice layer: anchored on desktop, a calm modal sheet on small screens. */
+.member-branded-select__layer {
+  position: fixed;
+  z-index: 299;
+  inset: 0;
+  pointer-events: none;
+}
+
+.member-branded-select__backdrop {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  background: transparent;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.member-branded-select__layer .member-branded-select__menu { pointer-events: auto; }
+.member-branded-select__menu-head > button { display: none; }
+
+@media (max-width: 520px) {
+  .member-branded-select__layer { pointer-events: auto; }
+  .member-branded-select__backdrop {
+    background: rgb(6 11 8 / 58%);
+    backdrop-filter: blur(4px);
+    opacity: 1;
+    pointer-events: auto;
+    animation: member-select-fade .18s ease;
+  }
+  .member-branded-select__layer .member-branded-select__menu {
+    max-height: min(72vh, 34rem);
+    border-color: rgb(236 208 137 / 15%);
+    border-radius: 1.6rem;
+    padding: .55rem;
+    box-shadow: 0 24px 70px rgb(4 8 5 / 58%);
+    animation: member-select-sheet-in .24s cubic-bezier(.2, .82, .2, 1);
+  }
+  .member-branded-select__layer .member-branded-select__menu::after { display: none; }
+  .member-branded-select__layer .member-branded-select__menu::before {
+    width: 2.5rem;
+    height: 3px;
+    border-radius: 99px;
+    background: rgb(255 255 255 / 16%);
+    margin: .08rem auto .22rem;
+    content: "";
+  }
+  .member-branded-select__menu-head {
+    grid-template-columns: auto 1fr auto 2rem;
+    padding: .6rem .66rem .5rem;
+  }
+  .member-branded-select__menu-head > button {
+    position: relative;
+    display: grid;
+    width: 2rem;
+    height: 2rem;
+    place-items: center;
+    border: 1px solid rgb(255 255 255 / 7%);
+    border-radius: 50%;
+    background: rgb(255 255 255 / 4.5%);
+  }
+  .member-branded-select__menu-head > button span::before,
+  .member-branded-select__menu-head > button span::after {
+    position: absolute;
+    top: .95rem;
+    left: .55rem;
+    width: .82rem;
+    height: 1px;
+    background: #d8dfd9;
+    content: "";
+  }
+  .member-branded-select__menu-head > button span::before { transform: rotate(45deg); }
+  .member-branded-select__menu-head > button span::after { transform: rotate(-45deg); }
+}
+
+@keyframes member-select-sheet-in {
+  from { opacity: 0; transform: translateY(1.4rem) scale(.985); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes member-select-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .member-branded-select__backdrop,
+  .member-branded-select__layer .member-branded-select__menu { animation: none; }
+}
