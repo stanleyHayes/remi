@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { api, setSession, ApiError, type AdminUser } from "@/lib/api";
 import { useToast } from "@/components/ui/Toast";
+import { OtpInput } from "@/components/OtpInput";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -15,6 +16,7 @@ export default function LoginPage() {
   const [error, setError] = useState("");
 	const [challengeToken, setChallengeToken] = useState("");
 	const [mfaCode, setMfaCode] = useState("");
+	const [useRecoveryCode, setUseRecoveryCode] = useState(false);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -25,7 +27,7 @@ export default function LoginPage() {
         method: "POST",
 			body: challengeToken ? { challengeToken, code: mfaCode } : { email, password },
       });
-		if (res.mfaRequired && res.challengeToken) { setChallengeToken(res.challengeToken); return; }
+		if (res.mfaRequired && res.challengeToken) { setChallengeToken(res.challengeToken); setMfaCode(""); return; }
 		if (!res.token || !res.user) throw new ApiError(500,"Sign-in response was incomplete.");
 	  setSession(res.token, res.user);
 	  showToast(`Welcome back, ${res.user.name || res.user.email}.`);
@@ -58,7 +60,7 @@ export default function LoginPage() {
             </div>
 			<form onSubmit={onSubmit} className="space-y-5">
           {error && <p role="alert" className="rounded-xl border border-rose-200 bg-rose-50 px-3.5 py-3 text-sm font-medium text-rose-700">{error}</p>}
-			{challengeToken ? <label className="block text-sm font-semibold text-[#30362f]">Authenticator or recovery code<input required autoFocus inputMode="numeric" autoComplete="one-time-code" value={mfaCode} onChange={(e)=>setMfaCode(e.target.value)} className="mt-2 w-full rounded-xl border border-[#d7d2c6] !bg-[#fffef9] px-4 py-3 font-mono text-lg tracking-[.25em] !text-[#172019] outline-none" placeholder="000000" /></label> : <><label className="block text-sm font-semibold text-[#30362f]">
+			{challengeToken ? <div className="block text-sm font-semibold text-[#30362f]"><span>{useRecoveryCode ? "Recovery code" : "Six-digit authenticator code"}</span>{useRecoveryCode ? <input required autoFocus autoComplete="one-time-code" value={mfaCode} onChange={(e)=>setMfaCode(e.target.value.trim())} className="mt-2 w-full rounded-xl border border-[#d7d2c6] !bg-[#fffef9] px-4 py-3 font-mono text-sm !text-[#172019] outline-none" placeholder="Enter a recovery code" /> : <div className="mt-3"><OtpInput value={mfaCode} onChange={setMfaCode} autoFocus disabled={loading} label="Authenticator code" /></div>}<button type="button" className="mt-3 text-xs font-bold text-[#8b681f] underline-offset-4 hover:underline" onClick={()=>{setUseRecoveryCode(value=>!value);setMfaCode("");}}>{useRecoveryCode ? "Use authenticator code" : "Use a recovery code instead"}</button></div> : <><label className="block text-sm font-semibold text-[#30362f]">
             Email
             <input
               type="email"
@@ -70,8 +72,7 @@ export default function LoginPage() {
               placeholder="admin@remi.church"
             />
           </label>
-		  </>}
-          <label className="block text-sm font-semibold text-[#30362f]">
+		  <label className="block text-sm font-semibold text-[#30362f]">
             <span className="flex items-center justify-between"><span>Password</span><span className="text-xs font-medium text-[#8b681f]">Protected access</span></span>
             <span className="relative mt-2 block">
             <input
@@ -85,7 +86,7 @@ export default function LoginPage() {
             />
             <button type="button" onClick={() => setShowPassword((value) => !value)} className="absolute inset-y-0 right-3 text-xs font-bold text-[#777a74]">{showPassword ? "Hide" : "Show"}</button>
             </span>
-          </label>
+          </label></>}
 
           <button
             type="submit"

@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { api, asList, ApiError } from "@/lib/api";
+import { api, asList, ApiError, getStoredUser } from "@/lib/api";
 import StatusBadge from "@/components/StatusBadge";
 import { Card, EmptyState, ErrorBox, PageHeader } from "@/components/ui";
 import { Modal } from "@/components/ui/Modal";
@@ -17,13 +17,32 @@ interface AdminUserRow {
   invitationStatus?: "pending" | "accepted";
   invitedAt?: string;
   createdAt?: string;
+	branchIds?: string[];
+  ministryIds?: string[];
+	accessVersion?: number;
 }
+interface ScopeOption { id: string; name: string }
 
 interface InvitationResult {
   demoInvitationUrl?: string;
 }
 
-const ROLES = ["editor", "viewer", "super-admin"];
+const ROLES = [
+  { value: "viewer", label: "Viewer", note: "Read-only general workspace" },
+  { value: "editor", label: "Content editor", note: "Website publishing and community inbox" },
+  { value: "pastor", label: "Pastor", note: "Pastoral care, attendance and connection" },
+  { value: "branch-admin", label: "Branch administrator", note: "Local church operations" },
+  { value: "membership-admin", label: "Membership administrator", note: "People, households and attendance" },
+  { value: "group-admin", label: "Groups administrator", note: "Groups, rosters and ministry insights" },
+  { value: "volunteer-coordinator", label: "Volunteer coordinator", note: "Teams, schedules and serving coverage" },
+  { value: "finance-counter", label: "Finance counter", note: "Counting batches only" },
+  { value: "finance-admin", label: "Finance administrator", note: "Finance configuration and ledger" },
+  { value: "finance-approver", label: "Finance approver", note: "Controlled approvals and exports" },
+  { value: "finance-auditor", label: "Finance auditor", note: "Read-only finance assurance" },
+  { value: "auditor", label: "Operational auditor", note: "Read and export safe branch audit metadata" },
+  { value: "data-protection-supervisor", label: "Data protection supervisor", note: "Organization privacy and audit assurance" },
+  { value: "super-admin", label: "Super administrator", note: "Full organization access" },
+];
 
 const input =
   "mt-1.5 w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm outline-none focus:border-gold";
@@ -37,6 +56,13 @@ export default function UsersPage() {
   const [inviteOpen, setInviteOpen] = useState(false);
   const [email, setEmail] = useState("");
   const [role, setRole] = useState("editor");
+	const [branches, setBranches] = useState<ScopeOption[]>([]);
+	const [ministries, setMinistries] = useState<ScopeOption[]>([]);
+	const [branchIds, setBranchIds] = useState<string[]>([]);
+	const [ministryIds, setMinistryIds] = useState<string[]>([]);
+	const [scopeUser,setScopeUser]=useState<AdminUserRow|null>(null);
+	const [scopeReason,setScopeReason]=useState("");
+	const [scopeRole,setScopeRole]=useState("viewer");
   const [inviting, setInviting] = useState(false);
 
   const load = useCallback(async () => {
@@ -57,18 +83,24 @@ export default function UsersPage() {
 
   useEffect(() => {
     load();
+	Promise.all([api("/api/branches"), api("/api/ministries")]).then(([branchData, ministryData]) => {
+		setBranches(asList<ScopeOption>(branchData));
+		setMinistries(asList<ScopeOption>(ministryData));
+	}).catch(() => {});
   }, [load]);
 
   function resetInvite() {
     setEmail("");
     setRole("editor");
+	setBranchIds([]);
+	setMinistryIds([]);
   }
 
   async function onInvite(e: React.FormEvent) {
     e.preventDefault();
     setInviting(true);
     try {
-      const result = await api<InvitationResult>("/api/admin/users", { method: "POST", body: { email, role } });
+      const result = await api<InvitationResult>("/api/admin/users", { method: "POST", body: { email, role, branchIds, ministryIds } });
       if (result.demoInvitationUrl) {
         await navigator.clipboard?.writeText(result.demoInvitationUrl);
         showToast(`Invitation created. Demo link copied to your clipboard.`);
@@ -84,6 +116,12 @@ export default function UsersPage() {
       setInviting(false);
     }
   }
+
+	const operationalRole = !["viewer", "editor", "super-admin"].includes(role);
+	const ministryRole = ["pastor", "group-admin", "volunteer-coordinator"].includes(role);
+	function toggleScope(id:string, selected:string[], update:(value:string[])=>void){ update(selected.includes(id)?selected.filter(item=>item!==id):[...selected,id]); }
+	function editScope(user:AdminUserRow){setScopeUser(user);setScopeRole(user.role||"viewer");setBranchIds((user.branchIds||[]).filter(id=>branches.some(item=>item.id===id)));setMinistryIds((user.ministryIds||[]).filter(id=>ministries.some(item=>item.id===id)));setScopeReason("")}
+	async function saveScope(){if(!scopeUser)return;setInviting(true);try{await api(`/api/admin/users/${encodeURIComponent(scopeUser.id)}/scopes`,{method:"PATCH",body:{role:scopeRole,branchIds,ministryIds,expectedAccessVersion:scopeUser.accessVersion||0,reason:scopeReason}});showToast("Access role and scope updated. Existing sessions were revoked.");setScopeUser(null);resetInvite();await load()}catch(err){showToast(err instanceof ApiError?err.message:"Access update failed.","error")}finally{setInviting(false)}}
 
   return (
     <div>
@@ -119,6 +157,7 @@ export default function UsersPage() {
                     <th className="px-4 py-3 font-medium">Name</th>
                     <th className="px-4 py-3 font-medium">Email</th>
                     <th className="px-4 py-3 font-medium">Access</th>
+					<th className="px-4 py-3 font-medium">Scope</th>
                     <th className="px-4 py-3 font-medium">Status</th>
                   </tr>
                 </thead>
@@ -130,6 +169,7 @@ export default function UsersPage() {
                       <td className="px-4 py-3">
                         <StatusBadge status={u.role} />
                       </td>
+					  <td className="px-4 py-3 text-zinc-600"><span className="user-scope-summary">{u.role==="super-admin"?"All branches":u.branchIds?.length?`${u.branchIds.length} branch${u.branchIds.length===1?"":"es"}`:"Content only"}{u.ministryIds?.length&&u.role!=="super-admin"?<small>{u.ministryIds.length} ministries</small>:null}{u.id!==getStoredUser()?.id&&<button type="button" onClick={()=>editScope(u)}>Edit access</button>}</span></td>
                       <td className="px-4 py-3">
                         <StatusBadge status={u.invitationStatus === "pending" ? "pending" : "active"} />
                       </td>
@@ -154,26 +194,31 @@ export default function UsersPage() {
           <span className="block text-sm font-medium text-zinc-700">
             Role
             <Select className="mt-1.5" value={role} onChange={(e) => setRole(e.target.value)}>
-              {ROLES.map((r) => (
-                <option key={r} value={r}>
-                  {r}
+              {ROLES.map((item) => (
+                <option key={item.value} value={item.value}>
+                  {item.label} — {item.note}
                 </option>
               ))}
             </Select>
             <span className="mt-1 block text-xs font-normal text-zinc-400">
-              viewer = read-only · editor = create & edit · super-admin = everything
+              Access is permission-scoped by ministry domain. Finance and pastoral data remain isolated.
             </span>
           </span>
+		  {operationalRole && <fieldset className="user-scope-fieldset"><legend>Branch access <small>{branchIds.length} selected</small></legend><div>{branches.map(branch=><button type="button" key={branch.id} aria-pressed={branchIds.includes(branch.id)} className={branchIds.includes(branch.id)?"is-selected":""} onClick={()=>toggleScope(branch.id,branchIds,setBranchIds)}><i aria-hidden="true">{branchIds.includes(branch.id)?"✓":"+"}</i><span><b>{branch.name}</b><small>Operational records in this branch</small></span></button>)}</div><p>At least one branch is required. Requests without an explicit matching branch are denied.</p></fieldset>}
+		  {ministryRole && ministries.length>0 && <fieldset className="user-scope-fieldset"><legend>Ministry access <small>{ministryIds.length} selected</small></legend><div>{ministries.map(ministry=><button type="button" key={ministry.id} aria-pressed={ministryIds.includes(ministry.id)} className={ministryIds.includes(ministry.id)?"is-selected":""} onClick={()=>toggleScope(ministry.id,ministryIds,setMinistryIds)}><i aria-hidden="true">{ministryIds.includes(ministry.id)?"✓":"+"}</i><span><b>{ministry.name}</b><small>Only ministry-owned groups and workflows</small></span></button>)}</div></fieldset>}
 
           <button
             type="submit"
-            disabled={inviting}
+            disabled={inviting || (operationalRole && branchIds.length===0)}
             className="w-full rounded-md bg-gold px-4 py-2.5 text-sm font-semibold text-sidebar transition hover:bg-gold-dark disabled:opacity-60"
           >
             {inviting ? "Sending invitation…" : "Send secure invitation"}
           </button>
         </form>
       </Modal>
+	  <Modal open={Boolean(scopeUser)} onClose={()=>!inviting&&setScopeUser(null)} title={`Edit ${scopeUser?.name||scopeUser?.email||"user"} access`}>
+		<div className="space-y-4"><p className="scope-change-warning">Saving immediately revokes every existing staff session for this account. Role changes additionally require your recent MFA verification.</p><label className="scope-role"><span>Staff role</span><Select value={scopeRole} onChange={event=>setScopeRole(event.target.value)}>{ROLES.map(item=><option key={item.value} value={item.value}>{item.label} — {item.note}</option>)}</Select></label>{scopeRole!=="super-admin"&&<><fieldset className="user-scope-fieldset"><legend>Branch access <small>{branchIds.length} selected</small></legend><div>{branches.map(branch=><button type="button" key={branch.id} aria-pressed={branchIds.includes(branch.id)} className={branchIds.includes(branch.id)?"is-selected":""} onClick={()=>toggleScope(branch.id,branchIds,setBranchIds)}><i aria-hidden="true">{branchIds.includes(branch.id)?"✓":"+"}</i><span><b>{branch.name}</b><small>Operational records in this branch</small></span></button>)}</div></fieldset><fieldset className="user-scope-fieldset"><legend>Ministry access <small>{ministryIds.length} selected</small></legend><div>{ministries.map(ministry=><button type="button" key={ministry.id} aria-pressed={ministryIds.includes(ministry.id)} className={ministryIds.includes(ministry.id)?"is-selected":""} onClick={()=>toggleScope(ministry.id,ministryIds,setMinistryIds)}><i aria-hidden="true">{ministryIds.includes(ministry.id)?"✓":"+"}</i><span><b>{ministry.name}</b><small>Ministry-owned groups and workflows</small></span></button>)}</div></fieldset></>}<label className="scope-reason"><span>Reason for access change</span><textarea value={scopeReason} onChange={event=>setScopeReason(event.target.value)} placeholder="Explain why this access is changing"/></label><button type="button" className="admin-primary-button scope-save-button" disabled={inviting||scopeReason.trim().length<8||Boolean(!['viewer','editor','super-admin'].includes(scopeRole)&&!branchIds.length)} onClick={()=>void saveScope()}>{inviting?"Saving…":"Save and revoke sessions"}</button></div>
+	  </Modal>
     </div>
   );
 }

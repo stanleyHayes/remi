@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { api, ApiError } from "@/lib/api";
 import { Card, ErrorBox } from "@/components/ui";
 import { SkeletonDashboard } from "@/components/ui/Skeleton";
+import OperationsOverview from "@/components/operations-overview";
 
 type MetricKey = "pendingReview" | "newPrayerRequests" | "newContacts" | "registrations" | "subscribers" | "pages" | "sermons" | "events";
 interface Datum { label: string; value: number }
@@ -35,8 +36,9 @@ export default function DashboardPage() {
   useEffect(() => { load(); }, []);
 
   return <div>
+    <OperationsOverview />
     <section className="mb-7 grid grid-cols-1 items-end gap-7 overflow-hidden rounded-2xl border border-white/10 bg-[var(--remi-green)] p-7 [background-image:radial-gradient(circle_at_88%_0%,rgba(209,173,85,.18),transparent_31%)] shadow-[0_22px_55px_rgba(23,32,25,.15)] lg:grid-cols-[1.2fr_.8fr] lg:p-9">
-      <div><p className="text-[.65rem] font-bold uppercase tracking-[.17em] text-[var(--altar-mint)]">Ministry intelligence</p><h1 className="mt-4 max-w-3xl text-[clamp(2rem,3.2vw,3.15rem)] font-[740] leading-none tracking-[-.052em] text-[#f1f8f6]">Know what needs attention—and what is growing.</h1><p className="mt-4 max-w-2xl text-sm leading-6 text-[var(--altar-copy)]">A live operational picture of publishing, pastoral care, community response and website readiness.</p></div>
+      <div><p className="text-[.65rem] font-bold uppercase tracking-[.17em] text-[var(--altar-mint)]">Digital ministry</p><h1 className="mt-4 max-w-3xl text-[clamp(2rem,3.2vw,3.15rem)] font-[740] leading-none tracking-[-.052em] text-[#f1f8f6]">Publishing and community response.</h1><p className="mt-4 max-w-2xl text-sm leading-6 text-[var(--altar-copy)]">Website readiness, public enquiries and the content pipeline remain visible beneath the church-operations pulse.</p></div>
       <div className="grid grid-cols-3 gap-px overflow-hidden rounded-xl border border-white/10 bg-white/10">
         <HeroStat label="Published" value={stats ? `${Math.round(stats.publishingRate)}%` : "—"}/><HeroStat label="Engagement" value={stats ? String(stats.engagementTotal) : "—"}/><HeroStat label="Upcoming" value={stats ? String(stats.upcomingEvents) : "—"}/>
       </div>

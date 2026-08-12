@@ -63,13 +63,19 @@ export interface AdminPreferences {
 interface ApiOptions {
   method?: string;
   body?: unknown;
+  headers?: Record<string, string>;
 }
 
 export async function api<T = unknown>(path: string, options: ApiOptions = {}): Promise<T> {
-  const headers: Record<string, string> = {};
+  const headers: Record<string, string> = { ...(options.headers || {}) };
   if (options.body !== undefined) headers["Content-Type"] = "application/json";
   const token = getToken();
   if (token) headers["Authorization"] = `Bearer ${token}`;
+  if (path.startsWith("/api/chms/") && typeof crypto !== "undefined") {
+    headers["X-Request-ID"] ||= crypto.randomUUID();
+    const method = (options.method || "GET").toUpperCase();
+    if (method === "POST") headers["Idempotency-Key"] ||= crypto.randomUUID();
+  }
 
   const res = await fetch(`${API_URL}${path}`, {
     method: options.method ?? "GET",
@@ -90,10 +96,8 @@ export async function api<T = unknown>(path: string, options: ApiOptions = {}): 
   }
 
   if (!res.ok) {
-    const message =
-      data && typeof data === "object" && "error" in data && typeof (data as { error: unknown }).error === "string"
-        ? (data as { error: string }).error
-        : `Request failed (${res.status})`;
+    const errorValue = data && typeof data === "object" && "error" in data ? (data as { error: unknown }).error : null;
+    const message = typeof errorValue === "string" ? errorValue : errorValue && typeof errorValue === "object" && "message" in errorValue && typeof (errorValue as {message:unknown}).message === "string" ? (errorValue as {message:string}).message : `Request failed (${res.status})`;
     if (res.status === 401) {
       clearSession();
       const isSignInRequest = path === "/api/auth/login" || path === "/api/auth/mfa/verify";
@@ -106,6 +110,68 @@ export async function api<T = unknown>(path: string, options: ApiOptions = {}): 
   }
 
   return data as T;
+}
+
+export async function apiForm<T = unknown>(path: string, form: FormData, method = "POST"): Promise<T> {
+  const headers: Record<string, string> = {};
+  const token = getToken();
+  if (token) headers.Authorization = `Bearer ${token}`;
+  if (path.startsWith("/api/chms/") && typeof crypto !== "undefined") {
+    headers["X-Request-ID"] = crypto.randomUUID();
+    if (method.toUpperCase() === "POST") headers["Idempotency-Key"] = crypto.randomUUID();
+  }
+  const response = await fetch(`${API_URL}${path}`, { method, headers, body: form });
+  const text = await response.text();
+  let data: unknown = null;
+  if (text) { try { data = JSON.parse(text); } catch { data = null; } }
+  if (!response.ok) {
+    const errorValue = data && typeof data === "object" && "error" in data ? (data as {error:unknown}).error : null;
+    const message = typeof errorValue === "string" ? errorValue : errorValue && typeof errorValue === "object" && "message" in errorValue && typeof (errorValue as {message:unknown}).message === "string" ? (errorValue as {message:string}).message : `Request failed (${response.status})`;
+    if (response.status === 401) clearSession();
+    throw new ApiError(response.status, message);
+  }
+  return data as T;
+}
+
+export async function apiDownload(path: string, fallbackName: string): Promise<void> {
+  const headers: Record<string, string> = {};
+  const token = getToken();
+  if (token) headers.Authorization = `Bearer ${token}`;
+  const response = await fetch(`${API_URL}${path}`, { headers, cache: "no-store" });
+  if (!response.ok) {
+    let message = `Download failed (${response.status})`;
+    try {
+      const data = await response.json() as { error?: string | { message?: string } };
+      message = typeof data.error === "string" ? data.error : data.error?.message || message;
+    } catch {}
+    if (response.status === 401) clearSession();
+    throw new ApiError(response.status, message);
+  }
+  const blob = await response.blob();
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = fallbackName;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  URL.revokeObjectURL(url);
+}
+
+export async function apiDownloadPost(path: string, body: unknown, fallbackName: string): Promise<void> {
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  const token = getToken();
+  if (token) headers.Authorization = `Bearer ${token}`;
+  if (typeof crypto !== "undefined") headers["X-Request-ID"] = crypto.randomUUID();
+  const response = await fetch(`${API_URL}${path}`, { method: "POST", headers, body: JSON.stringify(body), cache: "no-store" });
+  if (!response.ok) {
+    let message = `Export failed (${response.status})`;
+    try { const data = await response.json() as {error?:string|{message?:string}}; message = typeof data.error === "string" ? data.error : data.error?.message || message; } catch {}
+    throw new ApiError(response.status, message);
+  }
+  const blob = await response.blob();
+  const url = URL.createObjectURL(blob); const anchor = document.createElement("a");
+  anchor.href = url; anchor.download = fallbackName; document.body.appendChild(anchor); anchor.click(); anchor.remove(); URL.revokeObjectURL(url);
 }
 
 /** List endpoints may return a bare array or a paginated { items } envelope. */

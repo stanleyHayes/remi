@@ -1,0 +1,21 @@
+.ops-overview-cards em {
+  margin-top: .6rem;
+  color: color-mix(in srgb, var(--admin-muted) 72%, transparent);
+  font: 500 .48rem var(--font-mono);
+  font-style: normal;
+  letter-spacing: .03em;
+}
+
+.metric-library,
+.metric-library * {
+  min-width: 0;
+}
+
+.metric-definition-head span,
+.metric-definition code,
+.metric-definition-detail p,
+.report-measure-grid small,
+.report-result article > span {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}

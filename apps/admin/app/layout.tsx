@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { Geist_Mono, Outfit } from "next/font/google";
 import { ToastProvider } from "@/components/ui/Toast";
 import "./globals.css";
+import "./audit.css";
+import "./privacy-requests.css";
 
 const outfit = Outfit({ subsets: ["latin"], variable: "--font-outfit" });
 const geistMono = Geist_Mono({ subsets: ["latin"], variable: "--font-geist-mono" });
