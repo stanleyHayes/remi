@@ -17,6 +17,111 @@ html {
   scroll-behavior: smooth;
 }
 
+/* Shared listing pages: leave room for the floating navigation. */
+.listing-page-shell {
+  max-width: 1440px;
+  margin-inline: auto;
+  padding: 9rem clamp(1.25rem, 5vw, 5rem) 6rem;
+}
+
+.page-banner {
+  position: relative;
+  isolation: isolate;
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
+  align-items: end;
+  gap: 3rem;
+  overflow: hidden;
+  padding: clamp(2rem, 5vw, 4rem);
+  border: 1px solid rgb(245 241 232 / 0.12);
+  border-radius: 2rem;
+  background: var(--color-ink-soft);
+}
+
+.page-banner-number {
+  grid-column: 1 / -1;
+  color: var(--color-gold);
+  font-size: 0.75rem;
+  letter-spacing: 0.15em;
+}
+
+.page-banner-copy, .page-banner-aside { min-width: 0; }
+.page-banner-kicker {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1.25rem;
+  color: var(--color-gold-bright);
+  font-size: 0.65rem;
+  font-weight: 500;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+}
+.page-banner-kicker span {
+  width: 1.5rem;
+  height: 1px;
+  background: currentColor;
+}
+.page-banner h1 {
+  max-width: 13ch;
+  font-family: var(--font-display);
+  font-size: clamp(2.75rem, 5.5vw, 5.5rem);
+  font-weight: 500;
+  line-height: 1.02;
+  letter-spacing: -0.045em;
+  text-wrap: balance;
+  overflow-wrap: anywhere;
+}
+.page-banner-aside > p {
+  max-width: 36ch;
+  color: var(--color-cream-dim);
+  font-size: 1rem;
+  line-height: 1.75;
+}
+.page-banner-actions { margin-top: 1.5rem; }
+.page-banner-foot {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid rgb(245 241 232 / 0.1);
+  color: var(--color-cream-dim);
+  font-size: 0.55rem;
+  letter-spacing: 0.14em;
+}
+.page-banner-foot i { flex: 1; }
+.page-banner-orbit {
+  position: absolute;
+  z-index: -1;
+  width: 38rem;
+  aspect-ratio: 1;
+  top: -23rem;
+  right: -10rem;
+  border: 1px solid rgb(201 162 39 / 0.14);
+  border-radius: 50%;
+  pointer-events: none;
+}
+.page-banner-orbit i {
+  position: absolute;
+  inset: 15%;
+  border: inherit;
+  border-radius: inherit;
+}
+.page-banner-orbit i + i { inset: 30%; }
+
+@media (max-width: 767px) {
+  .listing-page-shell { padding-top: 7rem; padding-bottom: 4rem; }
+  .page-banner {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 2rem;
+    padding: 1.75rem 1.25rem;
+    border-radius: 1.5rem;
+  }
+  .page-banner h1 { font-size: clamp(2.5rem, 10vw, 4rem); }
+  .page-banner-foot { gap: 0.5rem; font-size: 0.5rem; letter-spacing: 0.08em; }
+}
+
 body {
   background-color: var(--color-ink);
   color: var(--color-cream);

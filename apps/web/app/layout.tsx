@@ -124,14 +124,14 @@ async function OrganizationJsonLd() {
 
 export default function RootLayout({
   children,
-}: {
+}: Readonly<{
   children: React.ReactNode;
-}) {
+}>) {
   return (
     <html lang="en" className={outfit.variable} data-scroll-behavior="smooth">
       <body
         id="top"
-        className="grain min-h-[100dvh] bg-ink font-sans text-cream antialiased"
+        className="grain min-h-dvh bg-ink font-sans text-cream antialiased"
       >
         <Suspense fallback={null}>
           <OrganizationJsonLd />

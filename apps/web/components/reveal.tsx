@@ -10,7 +10,7 @@ interface RevealProps {
   as?: "div" | "section" | "article" | "li" | "span";
 }
 
-export default function Reveal({ children, className = "", delay = 0, as = "div" }: RevealProps) {
+export default function Reveal({ children, className = "", delay = 0, as = "div" }: Readonly<RevealProps>) {
   const ref = useRef<HTMLElement | null>(null);
 
   useEffect(() => {

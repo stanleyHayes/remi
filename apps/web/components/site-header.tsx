@@ -15,7 +15,7 @@ const NAV = [
 
 const ease = "transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)]";
 
-export default function SiteHeader({ isLive }: { isLive: boolean }) {
+export default function SiteHeader({ isLive }: Readonly<{ isLive: boolean }>) {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
 

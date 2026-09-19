@@ -52,7 +52,7 @@ export function aboutMetadata(pageKey: string): Metadata {
   });
 }
 
-export default async function AboutPage({ pageKey }: { pageKey: string }) {
+export default async function AboutPage({ pageKey }: Readonly<{ pageKey: string }>) {
   const page = await getPage(pageKey);
   const meta = ABOUT_META[pageKey] ?? ABOUT_META.history;
 
@@ -66,7 +66,7 @@ export default async function AboutPage({ pageKey }: { pageKey: string }) {
       <section className="relative flex min-h-[60dvh] items-end overflow-hidden">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={heroImage} alt={title} className="absolute inset-0 h-full w-full object-cover" />
-        <div className="absolute inset-0 bg-gradient-to-t from-ink via-ink/60 to-ink/40" />
+        <div className="absolute inset-0 bg-linear-to-t from-ink via-ink/60 to-ink/40" />
         <div className="relative mx-auto w-full max-w-4xl px-5 pb-16 pt-44 sm:px-8">
           <Reveal>
             <Eyebrow>{meta.eyebrow}</Eyebrow>
